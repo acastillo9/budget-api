@@ -49,14 +49,18 @@ export class TransactionsService {
     updateTransactionDto: UpdateTransactionDto,
   ): Promise<TransactionResponseDto> {
     return this.transactionModel
-      .findByIdAndUpdate(id, {
-        ...updateTransactionDto,
-        amount:
-          updateTransactionDto.transactionType === TransactionType.EXPENSE
-            ? -updateTransactionDto.amount
-            : updateTransactionDto.amount,
-        updateDate: new Date(),
-      })
+      .findByIdAndUpdate(
+        id,
+        {
+          ...updateTransactionDto,
+          amount:
+            updateTransactionDto.transactionType === TransactionType.EXPENSE
+              ? -updateTransactionDto.amount
+              : updateTransactionDto.amount,
+          updateDate: new Date(),
+        },
+        { new: true },
+      )
       .exec()
       .then(TransactionResponseDto.fromTransaction);
   }

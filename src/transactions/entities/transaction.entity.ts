@@ -9,13 +9,13 @@ export type TransactionDocument = HydratedDocument<Transaction>;
 
 @Schema()
 export class Transaction {
-  @Prop({ type: String, enum: TransactionType })
+  @Prop({ type: String, enum: TransactionType, required: true })
   transactionType: TransactionType;
 
   @Prop({ type: Number, required: true })
   amount: number;
 
-  @Prop({ type: String, enum: CurrencyCode })
+  @Prop({ type: String, enum: CurrencyCode, required: true })
   currencyCode: CurrencyCode;
 
   @Prop({ type: Date, required: true })
