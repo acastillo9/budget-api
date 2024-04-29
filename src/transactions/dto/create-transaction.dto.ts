@@ -7,4 +7,5 @@ export class CreateTransactionDto {
   repeatType: string;
   description: string;
   category: string;
+  paid: boolean;
 }

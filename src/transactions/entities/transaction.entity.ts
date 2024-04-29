@@ -43,6 +43,12 @@ export class Transaction {
     autopopulate: true,
   })
   category: CategoryDocument;
+
+  @Prop({
+    type: Boolean,
+    default: false,
+  })
+  paid: boolean;
 }
 
 export const TransactionSchema = SchemaFactory.createForClass(Transaction);

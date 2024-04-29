@@ -11,6 +11,7 @@ export class TransactionResponseDto {
   repeatType: string;
   description: string;
   category: CategoryResponseDto;
+  paid: boolean;
 
   static fromTransaction(
     transaction: TransactionDocument,
@@ -27,6 +28,7 @@ export class TransactionResponseDto {
     transactionResponseDto.category = CategoryResponseDto.fromCategory(
       transaction.category,
     );
+    transactionResponseDto.paid = transaction.paid;
     return transactionResponseDto;
   }
 }
