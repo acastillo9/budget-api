@@ -3,7 +3,8 @@ import { DatabaseModule } from './database/database.module';
 import { ConfigModule } from '@nestjs/config';
 import { CategoriesModule } from './categories/categories.module';
 import { TransactionsModule } from './transactions/transactions.module';
-import { AccountsModule } from './accounts/accounts.module';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -11,7 +12,8 @@ import { AccountsModule } from './accounts/accounts.module';
     DatabaseModule,
     CategoriesModule,
     TransactionsModule,
-    AccountsModule,
+    UsersModule,
+    AuthModule,
   ],
   controllers: [],
   providers: [],

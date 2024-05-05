@@ -6,6 +6,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Transaction } from './entities/transaction.entity';
 import { Model } from 'mongoose';
 import { TransactionType } from './entities/transaction-type.enum';
+import { BalanceResponseDto } from './dto/balance-response.dto';
 
 @Injectable()
 export class TransactionsService {
@@ -70,5 +71,67 @@ export class TransactionsService {
       .findByIdAndDelete(id)
       .exec()
       .then(TransactionResponseDto.fromTransaction);
+  }
+
+  async getBalance(): Promise<BalanceResponseDto> {
+    return this.transactionModel
+      .aggregate([
+        {
+          $match: {
+            paid: true,
+          },
+        },
+        {
+          $group: {
+            _id: '$currencyCode',
+            balance: {
+              $sum: '$amount',
+            },
+          },
+        },
+        {
+          $sort: {
+            _id: 1,
+          },
+        },
+      ])
+      .exec()
+      .then((result) => ({
+        ...result.reduce((acc, { _id, balance }) => {
+          acc[_id] = balance;
+          return acc;
+        }, {}),
+      }));
+  }
+
+  async getBalanceByDate(date: string): Promise<BalanceResponseDto> {
+    return this.transactionModel
+      .aggregate([
+        {
+          $match: {
+            startDate: { $lte: new Date(date) },
+          },
+        },
+        {
+          $group: {
+            _id: '$currencyCode',
+            balance: {
+              $sum: '$amount',
+            },
+          },
+        },
+        {
+          $sort: {
+            _id: 1,
+          },
+        },
+      ])
+      .exec()
+      .then((result) => ({
+        ...result.reduce((acc, { _id, balance }) => {
+          acc[_id] = balance;
+          return acc;
+        }, {}),
+      }));
   }
 }
