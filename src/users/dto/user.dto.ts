@@ -5,6 +5,7 @@ export class UserDto {
   name: string;
   email: string;
   password: string;
+  account: string;
 
   static fromUser(user: UserDocument): UserDto {
     const sourceResponseDTO = new UserDto();
@@ -12,6 +13,7 @@ export class UserDto {
     sourceResponseDTO.name = user.name;
     sourceResponseDTO.email = user.email;
     sourceResponseDTO.password = user.password;
+    sourceResponseDTO.account = user.account._id.toHexString();
     return sourceResponseDTO;
   }
 }

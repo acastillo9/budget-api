@@ -14,14 +14,19 @@ export class AuthService {
     username: string,
     pass: string,
   ): Promise<{ access_token: string }> {
-    const user = await this.usersService.findOne(username);
+    const user =
+      await this.usersService.findOneByUsernameWithPassword(username);
     const isPasswordMatching = await compare(pass, user.password);
     if (!isPasswordMatching) {
       throw new UnauthorizedException();
     }
-    const payload = { sub: user.id, name: user.name, username: user.email };
+    const payload = { sub: user.id, account: user.account };
     return {
       access_token: await this.jwtService.signAsync(payload),
     };
+  }
+
+  async getProfile(userId: string) {
+    return this.usersService.findOne(userId);
   }
 }
