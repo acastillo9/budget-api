@@ -1,17 +1,18 @@
 import CategoryResponseDto from 'src/categories/dto/category-response.dto';
 import { TransactionDocument } from '../entities/transaction.entity';
+import { AccountResponseDto } from 'src/accounts/dto/account-response.dto';
 
 export class TransactionResponseDto {
   id: string;
   transactionType: string;
   amount: number;
-  currencyCode: string;
   startDate: Date;
   endDate: Date;
   repeatType: string;
   description: string;
   category: CategoryResponseDto;
   paid: boolean;
+  account: AccountResponseDto;
 
   static fromTransaction(
     transaction: TransactionDocument,
@@ -20,7 +21,6 @@ export class TransactionResponseDto {
     transactionResponseDto.id = transaction._id.toHexString();
     transactionResponseDto.transactionType = transaction.transactionType;
     transactionResponseDto.amount = transaction.amount;
-    transactionResponseDto.currencyCode = transaction.currencyCode;
     transactionResponseDto.startDate = transaction.startDate;
     transactionResponseDto.endDate = transaction.endDate;
     transactionResponseDto.repeatType = transaction.repeatType;
@@ -29,6 +29,9 @@ export class TransactionResponseDto {
       transaction.category,
     );
     transactionResponseDto.paid = transaction.paid;
+    transactionResponseDto.account = AccountResponseDto.fromAccount(
+      transaction.account,
+    );
     return transactionResponseDto;
   }
 }

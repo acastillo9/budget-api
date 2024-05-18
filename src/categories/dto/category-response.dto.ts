@@ -5,9 +5,9 @@ export default class CategoryResponseDto {
   name: string;
 
   static fromCategory(category: CategoryDocument): CategoryResponseDto {
-    const sourceResponseDTO = new CategoryResponseDto();
-    sourceResponseDTO.id = category._id.toHexString();
-    sourceResponseDTO.name = category.name;
-    return sourceResponseDTO;
+    const categoryResponseDto = new CategoryResponseDto();
+    categoryResponseDto.id = category._id.toHexString();
+    categoryResponseDto.name = category.name;
+    return categoryResponseDto;
   }
 }

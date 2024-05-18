@@ -3,7 +3,7 @@ import { HydratedDocument, SchemaTypes } from 'mongoose';
 import { RepeatType } from './repeat-type.enum';
 import { CategoryDocument } from 'src/categories/entities/category.entity';
 import { TransactionType } from './transaction-type.enum';
-import { CurrencyCode } from './currency-code.enum';
+import { AccountDocument } from 'src/accounts/entities/account.entity';
 
 export type TransactionDocument = HydratedDocument<Transaction>;
 
@@ -14,9 +14,6 @@ export class Transaction {
 
   @Prop({ type: Number, required: true })
   amount: number;
-
-  @Prop({ type: String, enum: CurrencyCode, required: true })
-  currencyCode: CurrencyCode;
 
   @Prop({ type: Date, required: true })
   startDate: Date;
@@ -49,6 +46,14 @@ export class Transaction {
     default: false,
   })
   paid: boolean;
+
+  @Prop({
+    type: SchemaTypes.ObjectId,
+    ref: 'Account',
+    required: true,
+    autopopulate: true,
+  })
+  account: AccountDocument;
 }
 
 export const TransactionSchema = SchemaFactory.createForClass(Transaction);

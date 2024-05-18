@@ -7,21 +7,15 @@ import { hash } from 'bcrypt';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UserDto } from './dto/user.dto';
 import { JWT_HASH_CYCLES } from './utils/constants';
-import { AccountsService } from 'src/accounts/accounts.service';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    @InjectModel(User.name) private userModel: Model<User>,
-    private accountService: AccountsService,
-  ) {}
+  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
 
   async create(createUserDto: CreateUserDto) {
-    const account = await this.accountService.create({});
     const newUser = {
       ...createUserDto,
       password: await hash(createUserDto.password, JWT_HASH_CYCLES),
-      account: account.id,
     };
     const user = await new this.userModel(newUser)
       .save()

@@ -6,18 +6,19 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Transaction } from './entities/transaction.entity';
 import { Model } from 'mongoose';
 import { TransactionType } from './entities/transaction-type.enum';
-import { BalanceResponseDto } from './dto/balance-response.dto';
+import { AccountsService } from 'src/accounts/accounts.service';
 
 @Injectable()
 export class TransactionsService {
   constructor(
     @InjectModel(Transaction.name) private transactionModel: Model<Transaction>,
+    private accountsService: AccountsService,
   ) {}
 
   async create(
     createTransactionDto: CreateTransactionDto,
   ): Promise<TransactionResponseDto> {
-    return new this.transactionModel({
+    const transaction = await new this.transactionModel({
       ...createTransactionDto,
       amount:
         createTransactionDto.transactionType === TransactionType.EXPENSE
@@ -27,6 +28,13 @@ export class TransactionsService {
     })
       .save()
       .then(TransactionResponseDto.fromTransaction);
+    if (transaction.paid) {
+      await this.accountsService.addAccountBalance(
+        transaction.account.id,
+        transaction.amount,
+      );
+    }
+    return transaction;
   }
 
   async findAll(): Promise<TransactionResponseDto[]> {
@@ -49,7 +57,7 @@ export class TransactionsService {
     id: string,
     updateTransactionDto: UpdateTransactionDto,
   ): Promise<TransactionResponseDto> {
-    return this.transactionModel
+    const transaction = await this.transactionModel
       .findByIdAndUpdate(
         id,
         {
@@ -64,74 +72,43 @@ export class TransactionsService {
       )
       .exec()
       .then(TransactionResponseDto.fromTransaction);
+    if (transaction.paid) {
+      await this.accountsService.addAccountBalance(
+        transaction.account.id,
+        transaction.amount,
+      );
+    }
+    return transaction;
   }
 
   async remove(id: string): Promise<TransactionResponseDto> {
-    return this.transactionModel
+    const transaction = await this.transactionModel
       .findByIdAndDelete(id)
       .exec()
       .then(TransactionResponseDto.fromTransaction);
+    if (transaction.paid) {
+      await this.accountsService.addAccountBalance(
+        transaction.account.id,
+        transaction.amount * -1,
+      );
+    }
+    return transaction;
   }
 
-  async getBalance(): Promise<BalanceResponseDto> {
+  async findAllByMonthAndYear(
+    month: number,
+    year: number,
+  ): Promise<TransactionResponseDto[]> {
     return this.transactionModel
-      .aggregate([
-        {
-          $match: {
-            paid: true,
-          },
+      .find({
+        startDate: {
+          $gte: new Date(year, month - 1),
+          $lt: new Date(year, month),
         },
-        {
-          $group: {
-            _id: '$currencyCode',
-            balance: {
-              $sum: '$amount',
-            },
-          },
-        },
-        {
-          $sort: {
-            _id: 1,
-          },
-        },
-      ])
+      })
       .exec()
-      .then((result) => ({
-        ...result.reduce((acc, { _id, balance }) => {
-          acc[_id] = balance;
-          return acc;
-        }, {}),
-      }));
-  }
-
-  async getBalanceByDate(date: string): Promise<BalanceResponseDto> {
-    return this.transactionModel
-      .aggregate([
-        {
-          $match: {
-            startDate: { $lte: new Date(date) },
-          },
-        },
-        {
-          $group: {
-            _id: '$currencyCode',
-            balance: {
-              $sum: '$amount',
-            },
-          },
-        },
-        {
-          $sort: {
-            _id: 1,
-          },
-        },
-      ])
-      .exec()
-      .then((result) => ({
-        ...result.reduce((acc, { _id, balance }) => {
-          acc[_id] = balance;
-          return acc;
-        }, {}),
-      }));
+      .then((transactions) =>
+        transactions.map(TransactionResponseDto.fromTransaction),
+      );
   }
 }
