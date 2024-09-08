@@ -10,6 +10,6 @@ async function bootstrap() {
     mongoose.set('debug', true);
   }
   app.enableCors();
-  await app.listen(configService.getOrThrow('PORT'));
+  await app.listen(configService.get('PORT') || 3000);
 }
 bootstrap();
