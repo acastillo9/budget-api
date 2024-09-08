@@ -8,4 +8,5 @@ export class CreateTransactionDto {
   category: string;
   paid: boolean;
   account: string;
+  user: string;
 }

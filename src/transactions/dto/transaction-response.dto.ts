@@ -1,6 +1,7 @@
 import CategoryResponseDto from 'src/categories/dto/category-response.dto';
 import { TransactionDocument } from '../entities/transaction.entity';
 import { AccountResponseDto } from 'src/accounts/dto/account-response.dto';
+import { UserResponseDto } from 'src/users/dto/user-response.dto';
 
 export class TransactionResponseDto {
   id: string;
@@ -13,6 +14,7 @@ export class TransactionResponseDto {
   category: CategoryResponseDto;
   paid: boolean;
   account: AccountResponseDto;
+  user: UserResponseDto;
 
   static fromTransaction(
     transaction: TransactionDocument,
@@ -32,6 +34,7 @@ export class TransactionResponseDto {
     transactionResponseDto.account = AccountResponseDto.fromAccount(
       transaction.account,
     );
+    transactionResponseDto.user = UserResponseDto.fromUser(transaction.user);
     return transactionResponseDto;
   }
 }

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { User } from './entities/user.entity';
+import { User, UserDocument } from './entities/user.entity';
 import { Model } from 'mongoose';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UserDto } from './dto/user.dto';
@@ -24,7 +24,7 @@ export class UsersService {
       .then((user) => user && UserDto.fromUser(user));
   }
 
-  async findOne(id: string) {
-    return this.userModel.findById(id).exec().then(UserResponseDto.fromUser);
+  async findOne(email: string): Promise<UserDocument | null> {
+    return this.userModel.findOne({ email });
   }
 }

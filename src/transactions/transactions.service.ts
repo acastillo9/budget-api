@@ -37,15 +37,6 @@ export class TransactionsService {
     return transaction;
   }
 
-  async findAll(): Promise<TransactionResponseDto[]> {
-    return this.transactionModel
-      .find()
-      .exec()
-      .then((transactions) =>
-        transactions.map(TransactionResponseDto.fromTransaction),
-      );
-  }
-
   async findOne(id: string): Promise<TransactionResponseDto> {
     return this.transactionModel
       .findById(id)
@@ -57,6 +48,7 @@ export class TransactionsService {
     id: string,
     updateTransactionDto: UpdateTransactionDto,
   ): Promise<TransactionResponseDto> {
+    const oldTransaction = await this.transactionModel.findById(id);
     const transaction = await this.transactionModel
       .findByIdAndUpdate(
         id,
@@ -72,10 +64,20 @@ export class TransactionsService {
       )
       .exec()
       .then(TransactionResponseDto.fromTransaction);
-    if (transaction.paid) {
+
+    if (transaction.paid != oldTransaction.paid) {
       await this.accountsService.addAccountBalance(
         transaction.account.id,
-        transaction.amount,
+        transaction.paid ? transaction.amount : -oldTransaction.amount,
+      );
+    } else if (
+      transaction.paid &&
+      transaction.amount !== oldTransaction.amount
+    ) {
+      const amountDiff = transaction.amount - oldTransaction.amount;
+      await this.accountsService.addAccountBalance(
+        transaction.account.id,
+        amountDiff,
       );
     }
     return transaction;
@@ -89,18 +91,20 @@ export class TransactionsService {
     if (transaction.paid) {
       await this.accountsService.addAccountBalance(
         transaction.account.id,
-        transaction.amount * -1,
+        -transaction.amount,
       );
     }
     return transaction;
   }
 
-  async findAllByMonthAndYear(
+  async findAllByUserAndMonthAndYear(
+    userId: string,
     month: number,
     year: number,
   ): Promise<TransactionResponseDto[]> {
     return this.transactionModel
       .find({
+        user: userId,
         startDate: {
           $gte: new Date(year, month - 1),
           $lt: new Date(year, month),

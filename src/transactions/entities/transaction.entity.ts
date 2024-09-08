@@ -4,6 +4,7 @@ import { RepeatType } from './repeat-type.enum';
 import { CategoryDocument } from 'src/categories/entities/category.entity';
 import { TransactionType } from './transaction-type.enum';
 import { AccountDocument } from 'src/accounts/entities/account.entity';
+import { UserDocument } from 'src/users/entities/user.entity';
 
 export type TransactionDocument = HydratedDocument<Transaction>;
 
@@ -54,6 +55,14 @@ export class Transaction {
     autopopulate: true,
   })
   account: AccountDocument;
+
+  @Prop({
+    type: SchemaTypes.ObjectId,
+    ref: 'User',
+    required: true,
+    autopopulate: true,
+  })
+  user: UserDocument;
 }
 
 export const TransactionSchema = SchemaFactory.createForClass(Transaction);
