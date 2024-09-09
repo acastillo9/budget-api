@@ -4,26 +4,27 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './entities/user.entity';
 import { Model } from 'mongoose';
 import { UserResponseDto } from './dto/user-response.dto';
-import { UserDto } from './dto/user.dto';
+import { hash } from 'bcrypt';
+import { PASSWORD_BYCRYPT_SALT } from './utils/constants';
 
 @Injectable()
 export class UsersService {
   constructor(@InjectModel(User.name) private userModel: Model<User>) {}
 
-  async create(createUserDto: CreateUserDto) {
-    const user = await new this.userModel(createUserDto)
-      .save()
-      .then(UserResponseDto.fromUser);
-    return user;
+  async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
+    const newUser = {
+      ...createUserDto,
+      password: await hash(createUserDto.password, PASSWORD_BYCRYPT_SALT),
+    };
+    return new this.userModel(newUser).save().then(UserResponseDto.fromUser);
   }
 
-  async findOneByUsernameWithPassword(username: string) {
-    return this.userModel
-      .findOne({ email: username })
-      .exec()
-      .then((user) => user && UserDto.fromUser(user));
-  }
-
+  /**
+   * Find a user by email used in the login process.
+   * @param email The email of the user to find.
+   * @returns The user found or null if not found.
+   * @async
+   */
   async findOne(email: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ email });
   }
