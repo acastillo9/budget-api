@@ -39,7 +39,6 @@ export class AccountsService {
       updateAccountDto,
       { new: true },
     );
-    console.log(updatedAccount);
     return AccountResponseDto.fromAccount(updatedAccount);
   }
 
