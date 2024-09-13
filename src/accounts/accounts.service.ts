@@ -15,40 +15,40 @@ export class AccountsService {
   async create(
     createAccountDto: CreateAccountDto,
   ): Promise<AccountResponseDto> {
-    return new this.accountModel(createAccountDto)
-      .save()
-      .then(AccountResponseDto.fromAccount);
+    const newAccount = await new this.accountModel(createAccountDto).save();
+    return AccountResponseDto.fromAccount(newAccount);
   }
 
-  async findAllByUser(userId: string): Promise<AccountResponseDto[]> {
-    return this.accountModel
-      .find({ user: userId })
-      .exec()
-      .then((sources) => sources.map(AccountResponseDto.fromAccount));
+  async findAll(userId: string): Promise<AccountResponseDto[]> {
+    const accounts = await this.accountModel.find({ user: userId });
+    return accounts.map(AccountResponseDto.fromAccount);
   }
 
-  async findOne(id: string): Promise<AccountResponseDto> {
-    return this.accountModel
-      .findById(id)
-      .exec()
-      .then(AccountResponseDto.fromAccount);
+  async findOne(id: string, userId: string): Promise<AccountResponseDto> {
+    const account = await this.accountModel.findOne({ _id: id, user: userId });
+    return AccountResponseDto.fromAccount(account);
   }
 
   async update(
     id: string,
     updateAccountDto: UpdateAccountDto,
+    userId: string,
   ): Promise<AccountResponseDto> {
-    return this.accountModel
-      .findByIdAndUpdate(id, updateAccountDto, { new: true })
-      .exec()
-      .then(AccountResponseDto.fromAccount);
+    const updatedAccount = await this.accountModel.findOneAndUpdate(
+      { _id: id, user: userId },
+      updateAccountDto,
+      { new: true },
+    );
+    console.log(updatedAccount);
+    return AccountResponseDto.fromAccount(updatedAccount);
   }
 
-  async remove(id: string): Promise<AccountResponseDto> {
-    return this.accountModel
-      .findByIdAndDelete(id)
-      .exec()
-      .then(AccountResponseDto.fromAccount);
+  async remove(id: string, userId: string): Promise<AccountResponseDto> {
+    const deletedAccount = await this.accountModel.findOneAndDelete({
+      _id: id,
+      user: userId,
+    });
+    return AccountResponseDto.fromAccount(deletedAccount);
   }
 
   async addAccountBalance(
