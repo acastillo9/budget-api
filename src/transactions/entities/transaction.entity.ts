@@ -5,6 +5,7 @@ import { CategoryDocument } from 'src/categories/entities/category.entity';
 import { TransactionType } from './transaction-type.enum';
 import { AccountDocument } from 'src/accounts/entities/account.entity';
 import { UserDocument } from 'src/users/entities/user.entity';
+import { AuditableSchema } from 'src/shared/schemas';
 
 export type TransactionDocument = HydratedDocument<Transaction>;
 
@@ -28,11 +29,17 @@ export class Transaction {
   @Prop({ type: String })
   description: string;
 
-  @Prop({ type: Date, required: true })
-  creationDate: Date;
+  @Prop({ type: Date })
+  createdAt: Date;
 
   @Prop({ type: Date })
-  updateDate: Date;
+  updatedAt: Date;
+
+  @Prop({
+    type: Boolean,
+    default: false,
+  })
+  paid: boolean;
 
   @Prop({
     type: SchemaTypes.ObjectId,
@@ -41,12 +48,6 @@ export class Transaction {
     autopopulate: true,
   })
   category: CategoryDocument;
-
-  @Prop({
-    type: Boolean,
-    default: false,
-  })
-  paid: boolean;
 
   @Prop({
     type: SchemaTypes.ObjectId,
@@ -65,4 +66,5 @@ export class Transaction {
   user: UserDocument;
 }
 
-export const TransactionSchema = SchemaFactory.createForClass(Transaction);
+export const TransactionSchema =
+  SchemaFactory.createForClass(Transaction).add(AuditableSchema);

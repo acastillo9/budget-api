@@ -9,7 +9,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { JWT_EXPIRATION_TIME, JWT_SECRET } from './utils/constants';
+import { JWT_EXPIRATION_TIME, JWT_SECRET } from './constants';
 
 @Module({
   imports: [
@@ -19,7 +19,7 @@ import { JWT_EXPIRATION_TIME, JWT_SECRET } from './utils/constants';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get(JWT_SECRET),
-        signOptions: { expiresIn: JWT_EXPIRATION_TIME },
+        signOptions: { expiresIn: configService.get(JWT_EXPIRATION_TIME) },
       }),
       inject: [ConfigService],
     }),

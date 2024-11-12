@@ -1,1 +1,0 @@
-export const PASSWORD_BYCRYPT_SALT = 10;

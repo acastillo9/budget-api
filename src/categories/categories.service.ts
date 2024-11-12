@@ -1,53 +1,173 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Category } from './entities/category.entity';
 import { Model } from 'mongoose';
-import CategoryResponseDto from './dto/category-response.dto';
+import CategoryDto from './dto/category.dto';
+import { plainToClass } from 'class-transformer';
 
 @Injectable()
 export class CategoriesService {
+  private readonly logger: Logger = new Logger(CategoriesService.name);
+
   constructor(
     @InjectModel(Category.name) private categoryModel: Model<Category>,
   ) {}
 
+  /**
+   * Create a new category.
+   * @param createSourceDto The data to create the category.
+   * @param userId The id of the user to create the category.
+   * @returns The category created.
+   * @async
+   */
   async create(
     createSourceDto: CreateCategoryDto,
-  ): Promise<CategoryResponseDto> {
-    return new this.categoryModel(createSourceDto)
-      .save()
-      .then(CategoryResponseDto.fromCategory);
+    userId: string,
+  ): Promise<CategoryDto> {
+    const newCategory = {
+      ...createSourceDto,
+      user: userId,
+    };
+
+    try {
+      const categoryModel = new this.categoryModel(newCategory);
+      const savedCategory = await categoryModel.save();
+      return plainToClass(CategoryDto, savedCategory.toObject());
+    } catch (error) {
+      this.logger.error(
+        `Failed to create category: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error creating the category',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
-  async findAll(): Promise<CategoryResponseDto[]> {
-    return this.categoryModel
-      .find()
-      .exec()
-      .then((sources) => sources.map(CategoryResponseDto.fromCategory));
+  /**
+   * Find all categories of a user.
+   * @param userId The id of the user to find the categories.
+   * @returns The categories found.
+   * @async
+   */
+  async findAll(userId: string): Promise<CategoryDto[]> {
+    try {
+      const categories = await this.categoryModel.find({ user: userId }).exec();
+      return categories.map((category) =>
+        plainToClass(CategoryDto, category.toObject()),
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to find categories: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error finding the categories',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
-  async findOne(id: string): Promise<CategoryResponseDto> {
-    return this.categoryModel
-      .findById(id)
-      .exec()
-      .then(CategoryResponseDto.fromCategory);
+  /**
+   * Find a category by id.
+   * @param id The id of the category to find.
+   * @param userId The id of the user to find the category.
+   * @returns The category found.
+   * @async
+   */
+  async findOne(id: string, userId: string): Promise<CategoryDto> {
+    try {
+      const category = await this.categoryModel
+        .findOne({ _id: id, user: userId })
+        .exec();
+      if (!category) {
+        throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
+      }
+      return plainToClass(CategoryDto, category.toObject());
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(
+        `Failed to find category: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error finding the category',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
+  /**
+   * Update a category.
+   * @param id The id of the category to update.
+   * @param updateCategoryDto The data to update the category.
+   * @param userId The id of the user to update the category.
+   * @returns The category updated.
+   * @async
+   */
   async update(
     id: string,
     updateCategoryDto: UpdateCategoryDto,
-  ): Promise<CategoryResponseDto> {
-    return this.categoryModel
-      .findByIdAndUpdate(id, updateCategoryDto)
-      .exec()
-      .then(CategoryResponseDto.fromCategory);
+    userId: string,
+  ): Promise<CategoryDto> {
+    try {
+      const updatedCategory = await this.categoryModel
+        .findOneAndUpdate({ _id: id, user: userId }, updateCategoryDto, {
+          new: true,
+        })
+        .exec();
+      if (!updatedCategory) {
+        throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
+      }
+      return plainToClass(CategoryDto, updatedCategory.toObject());
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(
+        `Failed to update category: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error updating the category',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
-  async remove(id: string): Promise<CategoryResponseDto> {
-    return this.categoryModel
-      .findByIdAndDelete(id)
-      .exec()
-      .then(CategoryResponseDto.fromCategory);
+  /**
+   * Remove a category.
+   * @param id The id of the category to remove.
+   * @param userId The id of the user to remove the category.
+   * @returns The category removed.
+   * @async
+   */
+  async remove(id: string, userId: string): Promise<CategoryDto> {
+    try {
+      const deletedCategory = await this.categoryModel
+        .findOneAndDelete({ _id: id, user: userId })
+        .exec();
+      if (!deletedCategory) {
+        throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
+      }
+      return plainToClass(CategoryDto, deletedCategory.toObject());
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(
+        `Failed to remove category: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error removing the category',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }
