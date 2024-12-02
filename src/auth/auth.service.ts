@@ -5,6 +5,7 @@ import { RegisterDto } from './dto/register.dto';
 import { UserDto } from 'src/shared/dto/user.dto';
 import { Session } from './types';
 import { UserSession } from 'src/shared/types';
+import { EmailRegisteredDto } from './dto/email-registered.dto';
 
 @Injectable()
 export class AuthService {
@@ -45,5 +46,18 @@ export class AuthService {
    */
   async register(registerDto: RegisterDto): Promise<UserDto> {
     return this.usersService.create(registerDto);
+  }
+
+  /**
+   * Check if the email is already registered.
+   * @param email The email to check.
+   * @returns a email registered dto with registered attribute True if the
+   * email is registered, false otherwise.
+   * @async
+   */
+  async emailRegistered(email: string): Promise<EmailRegisteredDto> {
+    return {
+      registered: await this.usersService.userExists(email),
+    };
   }
 }

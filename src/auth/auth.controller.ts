@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -13,6 +14,7 @@ import { RegisterDto } from './dto/register.dto';
 import { AuthenticatedRequest, UserSession } from 'src/shared/types';
 import { Session } from './types';
 import { UserDto } from 'src/shared/dto/user.dto';
+import { EmailRegisteredDto } from './dto/email-registered.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -52,5 +54,17 @@ export class AuthController {
   @Get('profile')
   getProfile(@Request() req: AuthenticatedRequest): UserSession {
     return req.user;
+  }
+
+  /**
+   * Check if the user exists.
+   * @param req The request object.
+   * @returns True if the user exists, false otherwise.
+   * @async
+   */
+  @Public()
+  @Get('email-registered')
+  exists(@Query('email') email: string): Promise<EmailRegisteredDto> {
+    return this.authService.emailRegistered(email);
   }
 }

@@ -8,6 +8,9 @@ import { compare, hash } from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { PASSWORD_BYCRYPT_SALT } from './constants';
 import { UserDto } from 'src/shared/dto/user.dto';
+import { generateVerificationCode } from './utils';
+import { MailService } from 'src/mail/mail.service';
+import { emailVerification } from 'src/mail/templates';
 
 @Injectable()
 export class UsersService {
@@ -15,6 +18,7 @@ export class UsersService {
 
   constructor(
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
     @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
@@ -25,19 +29,28 @@ export class UsersService {
    * @async
    */
   async create(createUserDto: CreateUserDto): Promise<UserDto> {
-    if (this.userExists(createUserDto.email)) {
-      //throw new HttpException('User already exists', HttpStatus.CONFLICT);
+    if (await this.userExists(createUserDto.email)) {
+      throw new HttpException('User already exists', HttpStatus.CONFLICT);
     }
 
-    const hashedPassword = await this.hashPassword(createUserDto.password);
+    //const hashedPassword = await this.hashPassword(createUserDto.password);
+    //const newUser = {
+    //  ...createUserDto,
+    //  password: hashedPassword,
+    //};
+
     const newUser = {
       ...createUserDto,
-      password: hashedPassword,
+      activationCode: generateVerificationCode(),
+      activationCodeExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     };
 
     try {
       const userModel = new this.userModel(newUser);
       const savedUser = await userModel.save();
+
+      this.sendActivationCodeEmail(savedUser.email, savedUser.activationCode);
+
       return plainToClass(UserDto, savedUser.toObject());
     } catch (error) {
       this.logger.error(`Failed to create user: ${error.message}`, error.stack);
@@ -67,6 +80,16 @@ export class UsersService {
   }
 
   /**
+   * Check if a user exists by email.
+   * @param email The email of the user to check.
+   * @returns True if the user exists, false otherwise.
+   * @async
+   */
+  async userExists(email: string): Promise<boolean> {
+    return !!(await this.findOneByEmail(email));
+  }
+
+  /**
    * hash the password using bcrypt.
    * @param password The password to hash.
    * @returns The hashed password.
@@ -87,7 +110,7 @@ export class UsersService {
    */
   private async findOneByEmail(email: string): Promise<UserDocument | null> {
     try {
-      return await this.userModel.findOne({ email }).exec();
+      return this.userModel.findOne({ email });
     } catch (error) {
       this.logger.error(
         `Failed to find user by email: ${error.message}`,
@@ -100,13 +123,11 @@ export class UsersService {
     }
   }
 
-  /**
-   * Check if a user exists by email.
-   * @param email The email of the user to check.
-   * @returns True if the user exists, false otherwise.
-   * @async
-   */
-  private async userExists(email: string): Promise<boolean> {
-    return !!(await this.findOneByEmail(email));
+  private async sendActivationCodeEmail(to: string, activationCode: string) {
+    this.mailService.sendMail(
+      to,
+      'Confirm Your Email',
+      emailVerification(activationCode),
+    );
   }
 }

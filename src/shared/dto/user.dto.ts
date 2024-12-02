@@ -7,4 +7,13 @@ export class UserDto {
 
   @Exclude()
   password: string;
+
+  @Exclude()
+  activationCode: string;
+
+  @Exclude()
+  activationCodeExpires: Date;
+
+  @Exclude()
+  status: string;
 }
