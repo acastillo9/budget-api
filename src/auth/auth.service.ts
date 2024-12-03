@@ -6,6 +6,7 @@ import { UserDto } from 'src/shared/dto/user.dto';
 import { Session } from './types';
 import { UserSession } from 'src/shared/types';
 import { EmailRegisteredDto } from './dto/email-registered.dto';
+import { ActivationDto } from './dto/activation.dto';
 
 @Injectable()
 export class AuthService {
@@ -59,5 +60,18 @@ export class AuthService {
     return {
       registered: await this.usersService.userExists(email),
     };
+  }
+
+  /**
+   * Activate a user by email and activation code.
+   * @param activationDto The activation data.
+   * @returns The user activated.
+   * @async
+   */
+  async activate(activationDto: ActivationDto): Promise<UserDto> {
+    return this.usersService.activate(
+      activationDto.email,
+      activationDto.activationCode,
+    );
   }
 }

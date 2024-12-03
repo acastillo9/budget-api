@@ -15,6 +15,7 @@ import { AuthenticatedRequest, UserSession } from 'src/shared/types';
 import { Session } from './types';
 import { UserDto } from 'src/shared/dto/user.dto';
 import { EmailRegisteredDto } from './dto/email-registered.dto';
+import { ActivationDto } from './dto/activation.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -66,5 +67,17 @@ export class AuthController {
   @Get('email-registered')
   exists(@Query('email') email: string): Promise<EmailRegisteredDto> {
     return this.authService.emailRegistered(email);
+  }
+
+  /**
+   * Activate a user account.
+   * @param activationDto The data to activate the user account.
+   * @returns The user activated.
+   * @async
+   */
+  @Public()
+  @Post('activate-account')
+  activateAccount(@Body() activationDto: ActivationDto): Promise<UserDto> {
+    return this.authService.activate(activationDto);
   }
 }

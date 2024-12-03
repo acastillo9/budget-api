@@ -11,6 +11,7 @@ import { UserDto } from 'src/shared/dto/user.dto';
 import { generateVerificationCode } from './utils';
 import { MailService } from 'src/mail/mail.service';
 import { emailVerification } from 'src/mail/templates';
+import { UserStatus } from './entities/user-status.enum';
 
 @Injectable()
 export class UsersService {
@@ -90,6 +91,51 @@ export class UsersService {
   }
 
   /**
+   * Activate a user by email and activation code.
+   * @param email The email of the user to activate.
+   * @param activationCode The activation code of the user to activate.
+   * @returns The user activated.
+   * @async
+   */
+  async activate(email: string, activationCode: string): Promise<UserDto> {
+    const user = await this.findOneUnverifiedByEmail(email);
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    if (user.activationCode !== activationCode) {
+      throw new HttpException(
+        'Invalid activation code',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (user.activationCodeExpires < new Date()) {
+      throw new HttpException(
+        'Activation code expired',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    user.status = UserStatus.ACTIVE;
+    user.activationCode = null;
+    user.activationCodeExpires = null;
+    try {
+      const updatedUser = await user.save();
+      return plainToClass(UserDto, updatedUser.toObject());
+    } catch (error) {
+      this.logger.error(
+        `Failed to activate user: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error activating the user',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
    * hash the password using bcrypt.
    * @param password The password to hash.
    * @returns The hashed password.
@@ -114,6 +160,29 @@ export class UsersService {
     } catch (error) {
       this.logger.error(
         `Failed to find user by email: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error finding the user',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Find an unverified user by email.
+   * @param email The email of the user to find.
+   * @returns The user found or null if not found.
+   * @async
+   */
+  private async findOneUnverifiedByEmail(
+    email: string,
+  ): Promise<UserDocument | null> {
+    try {
+      return this.userModel.findOne({ email, status: UserStatus.UNVERIFIED });
+    } catch (error) {
+      this.logger.error(
+        `Failed to find unverified user by email: ${error.message}`,
         error.stack,
       );
       throw new HttpException(

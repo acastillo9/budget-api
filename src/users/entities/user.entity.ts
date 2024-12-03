@@ -22,7 +22,12 @@ export class User {
   @Prop({ type: Date })
   activationCodeExpires: Date;
 
-  @Prop({ type: String, enum: UserStatus, default: UserStatus.UNVERIFIED })
+  @Prop({
+    type: String,
+    enum: UserStatus,
+    required: true,
+    default: UserStatus.UNVERIFIED,
+  })
   status: string;
 }
 
