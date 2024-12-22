@@ -1,7 +1,7 @@
 /**
- * Generates a random 6 digit number used for verification codes.
- * @returns A random 6 digit number
+ * Generates a random 6-digit number to be used as an activation code
+ * @returns The generated activation code.
  */
-export function generateVerificationCode() {
-  return Math.floor(100000 + Math.random() * 900000); // Generates a number between 100000 and 999999
+export function generateActivationCode() {
+  return String(Math.floor(100000 + Math.random() * 900000)); // Generates a number between 100000 and 999999
 }

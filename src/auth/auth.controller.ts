@@ -15,7 +15,8 @@ import { AuthenticatedRequest, UserSession } from 'src/shared/types';
 import { Session } from './types';
 import { UserDto } from 'src/shared/dto/user.dto';
 import { EmailRegisteredDto } from './dto/email-registered.dto';
-import { ActivationDto } from './dto/activation.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { PasswordDto } from './dto/password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -70,14 +71,28 @@ export class AuthController {
   }
 
   /**
-   * Activate a user account.
-   * @param activationDto The data to activate the user account.
-   * @returns The user activated.
+   * Verify the email of the user.
+   * @param verifyEmailDto The data to verify the email.
+   * @returns The session created.
    * @async
    */
   @Public()
-  @Post('activate-account')
-  activateAccount(@Body() activationDto: ActivationDto): Promise<UserDto> {
-    return this.authService.activate(activationDto);
+  @Post('verify-email')
+  verifyEmail(@Body() verifyEmailDto: VerifyEmailDto): Promise<Session> {
+    return this.authService.verifyEmail(verifyEmailDto);
+  }
+
+  /**
+   * Set the password of the user.
+   * @param setPasswordDto The data to set the password.
+   * @returns The session created.
+   * @async
+   */
+  @Post('set-password')
+  setPassword(
+    @Request() req: AuthenticatedRequest,
+    @Body() passwordDto: PasswordDto,
+  ): Promise<Session> {
+    return this.authService.setPassword(req.user.id, passwordDto.password);
   }
 }

@@ -8,7 +8,7 @@ import { compare, hash } from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { PASSWORD_BYCRYPT_SALT } from './constants';
 import { UserDto } from 'src/shared/dto/user.dto';
-import { generateVerificationCode } from './utils';
+import { generateActivationCode } from './utils';
 import { MailService } from 'src/mail/mail.service';
 import { emailVerification } from 'src/mail/templates';
 import { UserStatus } from './entities/user-status.enum';
@@ -30,27 +30,35 @@ export class UsersService {
    * @async
    */
   async create(createUserDto: CreateUserDto): Promise<UserDto> {
-    if (await this.userExists(createUserDto.email)) {
+    let user = await this.findOneByEmail(createUserDto.email);
+
+    if (user && user.status === UserStatus.ACTIVE) {
       throw new HttpException('User already exists', HttpStatus.CONFLICT);
     }
 
-    //const hashedPassword = await this.hashPassword(createUserDto.password);
-    //const newUser = {
-    //  ...createUserDto,
-    //  password: hashedPassword,
-    //};
-
-    const newUser = {
-      ...createUserDto,
-      activationCode: generateVerificationCode(),
-      activationCodeExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
+    const activationCode = generateActivationCode();
+    const hashedActivationCode = await hash(
+      activationCode,
+      Number(this.configService.get(PASSWORD_BYCRYPT_SALT)),
+    );
+    const expirationDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     try {
-      const userModel = new this.userModel(newUser);
-      const savedUser = await userModel.save();
+      if (!user) {
+        const newUser = {
+          ...createUserDto,
+          activationCode: hashedActivationCode,
+          activationCodeExpires: expirationDate,
+        };
+        user = new this.userModel(newUser);
+      } else {
+        user.activationCode = hashedActivationCode;
+        user.activationCodeExpires = expirationDate;
+        user.status = UserStatus.UNVERIFIED;
+      }
+      const savedUser = await user.save();
 
-      this.sendActivationCodeEmail(savedUser.email, savedUser.activationCode);
+      this.sendActivationCodeEmail(savedUser.email, activationCode);
 
       return plainToClass(UserDto, savedUser.toObject());
     } catch (error) {
@@ -87,37 +95,36 @@ export class UsersService {
    * @async
    */
   async userExists(email: string): Promise<boolean> {
-    return !!(await this.findOneByEmail(email));
+    return !!(await this.findOneByEmailAndStatus(email, UserStatus.ACTIVE));
   }
 
   /**
-   * Activate a user by email and activation code.
-   * @param email The email of the user to activate.
-   * @param activationCode The activation code of the user to activate.
-   * @returns The user activated.
+   * Verify the email of the user.
+   * @param email The email of the user to verify.
+   * @param activationCode The activation code to verify.
+   * @returns The user verified.
    * @async
    */
-  async activate(email: string, activationCode: string): Promise<UserDto> {
-    const user = await this.findOneUnverifiedByEmail(email);
+  async verifyEmail(email: string, activationCode: string): Promise<UserDto> {
+    const user = await this.findOneByEmailAndStatus(
+      email,
+      UserStatus.UNVERIFIED,
+    );
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
-    if (user.activationCode !== activationCode) {
+    if (
+      !(await compare(activationCode, user.activationCode)) ||
+      user.activationCodeExpires < new Date()
+    ) {
       throw new HttpException(
         'Invalid activation code',
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    if (user.activationCodeExpires < new Date()) {
-      throw new HttpException(
-        'Activation code expired',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    user.status = UserStatus.ACTIVE;
+    user.status = UserStatus.VERIFIED_NO_PASSWORD;
     user.activationCode = null;
     user.activationCodeExpires = null;
     try {
@@ -136,16 +143,36 @@ export class UsersService {
   }
 
   /**
-   * hash the password using bcrypt.
-   * @param password The password to hash.
-   * @returns The hashed password.
+   * Set the password of the user.
+   * @param id The id of the user to set the password.
+   * @param password The password to set.
+   * @returns The user with the password set.
    * @async
    */
-  private async hashPassword(password: string): Promise<string> {
-    const saltRounds = Number(
-      this.configService.get(PASSWORD_BYCRYPT_SALT) || 10,
+  async setPassword(id: string, password: string): Promise<UserDto> {
+    const user = await this.userModel.findById(id);
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    user.password = await hash(
+      password,
+      Number(this.configService.get(PASSWORD_BYCRYPT_SALT)),
     );
-    return hash(password, saltRounds);
+    user.status = UserStatus.ACTIVE;
+    try {
+      const updatedUser = await user.save();
+      return plainToClass(UserDto, updatedUser.toObject());
+    } catch (error) {
+      this.logger.error(
+        `Failed to set password: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error setting the password',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   /**
@@ -170,19 +197,21 @@ export class UsersService {
   }
 
   /**
-   * Find an unverified user by email.
+   * Find a user by email and status.
    * @param email The email of the user to find.
+   * @param status The status of the user to find.
    * @returns The user found or null if not found.
    * @async
    */
-  private async findOneUnverifiedByEmail(
+  private async findOneByEmailAndStatus(
     email: string,
+    status: UserStatus,
   ): Promise<UserDocument | null> {
     try {
-      return this.userModel.findOne({ email, status: UserStatus.UNVERIFIED });
+      return this.userModel.findOne({ email, status });
     } catch (error) {
       this.logger.error(
-        `Failed to find unverified user by email: ${error.message}`,
+        `Failed to find user by email and status: ${error.message}`,
         error.stack,
       );
       throw new HttpException(
@@ -192,6 +221,12 @@ export class UsersService {
     }
   }
 
+  /**
+   * Send an email with the activation code.
+   * @param to The email to send the activation code.
+   * @param activationCode The activation code to send.
+   * @async
+   */
   private async sendActivationCodeEmail(to: string, activationCode: string) {
     this.mailService.sendMail(
       to,

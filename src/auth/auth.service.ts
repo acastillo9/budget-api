@@ -6,7 +6,7 @@ import { UserDto } from 'src/shared/dto/user.dto';
 import { Session } from './types';
 import { UserSession } from 'src/shared/types';
 import { EmailRegisteredDto } from './dto/email-registered.dto';
-import { ActivationDto } from './dto/activation.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 @Injectable()
 export class AuthService {
@@ -63,15 +63,42 @@ export class AuthService {
   }
 
   /**
-   * Activate a user by email and activation code.
-   * @param activationDto The activation data.
-   * @returns The user activated.
+   * Verify the email of the user.
+   * @param verifyEmailDto The data to verify the email.
+   * @returns The user verified.
    * @async
    */
-  async activate(activationDto: ActivationDto): Promise<UserDto> {
-    return this.usersService.activate(
-      activationDto.email,
-      activationDto.activationCode,
+  async verifyEmail(verifyEmailDto: VerifyEmailDto): Promise<Session> {
+    const user = await this.usersService.verifyEmail(
+      verifyEmailDto.email,
+      verifyEmailDto.activationCode,
     );
+
+    // generate a jwt token for set password step validation
+    const payload = { sub: user.id };
+    const accessToken = this.jwtService.sign(payload);
+
+    return {
+      access_token: accessToken,
+    };
+  }
+
+  /**
+   * Set the password of the user.
+   * @param userId The id of the user to set the password.
+   * @param password The password to set.
+   * @returns The session created.
+   * @async
+   */
+  async setPassword(userId: string, password: string): Promise<Session> {
+    const user = await this.usersService.setPassword(userId, password);
+
+    // generate a jwt token for set password step validation
+    const payload = { sub: user.id };
+    const accessToken = this.jwtService.sign(payload);
+
+    return {
+      access_token: accessToken,
+    };
   }
 }
