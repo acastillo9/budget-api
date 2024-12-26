@@ -101,4 +101,14 @@ export class AuthService {
       access_token: accessToken,
     };
   }
+
+  /**
+   * Get the user profile.
+   * @param userId The id of the user to get the profile.
+   * @returns The user profile.
+   * @async
+   */
+  async me(userId: string): Promise<UserDto> {
+    return this.usersService.findById(userId);
+  }
 }

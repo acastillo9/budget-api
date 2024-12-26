@@ -48,14 +48,14 @@ export class AuthController {
   }
 
   /**
-   * Get the profile of the user.
+   * Get the user profile.
    * @param req The request object.
    * @returns The user profile.
    * @async
    */
-  @Get('profile')
-  getProfile(@Request() req: AuthenticatedRequest): UserSession {
-    return req.user;
+  @Get('me')
+  me(@Request() req: AuthenticatedRequest): Promise<UserDto> {
+    return this.authService.me(req.user.id);
   }
 
   /**

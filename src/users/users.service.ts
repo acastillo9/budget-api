@@ -176,6 +176,20 @@ export class UsersService {
   }
 
   /**
+   * Find a user by id.
+   * @param id The id of the user to find.
+   * @returns The user found.
+   * @async
+   */
+  async findById(id: string): Promise<UserDto> {
+    const user = await this.userModel.findById(id);
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+    return plainToClass(UserDto, user.toObject());
+  }
+
+  /**
    * Find a user by email.
    * @param email The email of the user to find.
    * @returns The user found or null if not found.
