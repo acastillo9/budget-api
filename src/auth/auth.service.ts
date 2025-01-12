@@ -15,11 +15,13 @@ import {
   ACTIVATION_CODE_RESEND_LIMIT_MAX,
   ACTIVATION_CODE_RESEND_LIMIT_TIME,
   ACTIVATION_CODE_RESEND_LIMIT_TIME_DAILY,
+  PASSWORD_RESET_JWT_EXPIRATION_TIME,
+  PASSWORD_RESET_URL,
 } from './constants';
 import { UserStatus } from 'src/users/entities/user-status.enum';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { MailService } from 'src/mail/mail.service';
-import { emailVerification } from 'src/mail/templates';
+import { emailVerification, passwordReset } from 'src/mail/templates';
 import { RegisterResponseDto } from './dto/register-response.dto';
 import { ResendActivationCodeDto } from './dto/resend-activation-code.dto';
 import { UpdateUserDto } from 'src/users/dto/update-user.dto';
@@ -196,6 +198,62 @@ export class AuthService {
   }
 
   /**
+   * Get the user profile.
+   * @param userId The id of the user to get the profile.
+   * @returns The user profile.
+   * @async
+   */
+  async me(userId: string): Promise<UserSessionDto> {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    return {
+      id: user.id,
+      name: user.name,
+    };
+  }
+
+  /**
+   * Login a user.
+   * @param userId The id of the user to login.
+   * @returns The access token.
+   * @async
+   */
+  async login(userId: string): Promise<Session> {
+    const payload = { sub: userId };
+    return {
+      access_token: this.jwtService.sign(payload),
+    };
+  }
+
+  /**
+   * Send an email with a link to reset the password.
+   * @param email The email of the user to reset the password.
+   * @async
+   */
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    // generate a jwt token for set password step validation
+    const payload = { sub: user.id };
+    const accessToken = this.jwtService.sign(payload, {
+      expiresIn: this.configService.get(PASSWORD_RESET_JWT_EXPIRATION_TIME),
+    });
+    const resetLink = `${this.configService.get(PASSWORD_RESET_URL)}?token=${accessToken}`;
+    this.mailService.sendMail(
+      user.email,
+      'Reset Your Password',
+      passwordReset(resetLink),
+    );
+  }
+
+  /**
    * Send an email with the activation code.
    * @param to The email to send the activation code.
    * @param activationCode The activation code to send.
@@ -250,36 +308,5 @@ export class AuthService {
       );
       createUserDto.activationCodeRetries = 0;
     }
-  }
-
-  /**
-   * Get the user profile.
-   * @param userId The id of the user to get the profile.
-   * @returns The user profile.
-   * @async
-   */
-  async me(userId: string): Promise<UserSessionDto> {
-    const user = await this.usersService.findById(userId);
-    if (!user) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-    }
-
-    return {
-      id: user.id,
-      name: user.name,
-    };
-  }
-
-  /**
-   * Login a user.
-   * @param userId The id of the user to login.
-   * @returns The access token.
-   * @async
-   */
-  async login(userId: string): Promise<Session> {
-    const payload = { sub: userId };
-    return {
-      access_token: this.jwtService.sign(payload),
-    };
   }
 }

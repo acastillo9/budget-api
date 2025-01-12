@@ -114,4 +114,16 @@ export class AuthController {
   login(@Request() req: AuthenticatedRequest): Promise<Session> {
     return this.authService.login(req.user.id);
   }
+
+  /**
+   * Forgot password.
+   * @param emailDto The email to send the forgot password email.
+   * @returns The response of the forgot password.
+   * @async
+   */
+  @Public()
+  @Post('forgot-password')
+  forgotPassword(@Body() emailDto: EmailDto): Promise<void> {
+    return this.authService.forgotPassword(emailDto.email);
+  }
 }
