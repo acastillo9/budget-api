@@ -23,6 +23,7 @@ import { emailVerification } from 'src/mail/templates';
 import { RegisterResponseDto } from './dto/register-response.dto';
 import { ResendActivationCodeDto } from './dto/resend-activation-code.dto';
 import { UpdateUserDto } from 'src/users/dto/update-user.dto';
+import { UserSessionDto } from './dto/user-session.dto';
 
 @Injectable()
 export class AuthService {
@@ -257,8 +258,16 @@ export class AuthService {
    * @returns The user profile.
    * @async
    */
-  async me(userId: string): Promise<UserDto> {
-    return this.usersService.findById(userId);
+  async me(userId: string): Promise<UserSessionDto> {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    return {
+      id: user.id,
+      name: user.name,
+    };
   }
 
   /**

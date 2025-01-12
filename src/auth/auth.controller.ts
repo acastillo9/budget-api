@@ -17,9 +17,9 @@ import { EmailRegisteredDto } from './dto/email-registered.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { PasswordDto } from './dto/password.dto';
 import { EmailDto } from './dto/email.dto';
-import { UserDto } from 'src/users/dto/user.dto';
 import { RegisterResponseDto } from './dto/register-response.dto';
 import { ResendActivationCodeDto } from './dto/resend-activation-code.dto';
+import { UserSessionDto } from './dto/user-session.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -98,7 +98,7 @@ export class AuthController {
    * @async
    */
   @Get('me')
-  me(@Request() req: AuthenticatedRequest): Promise<UserDto> {
+  me(@Request() req: AuthenticatedRequest): Promise<UserSessionDto> {
     return this.authService.me(req.user.id);
   }
 
