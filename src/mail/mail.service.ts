@@ -11,7 +11,7 @@ export class MailService {
     html: string,
     from: string = 'Budget App <ac.budget.app@gmail.com>',
   ) {
-    this.mailService.sendMail({
+    return this.mailService.sendMail({
       from,
       to,
       subject,

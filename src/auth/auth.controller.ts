@@ -11,28 +11,32 @@ import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { LocalAuthGuard } from './local-auth.guard';
 import { RegisterDto } from './dto/register.dto';
-import { AuthenticatedRequest, UserSession } from 'src/shared/types';
+import { AuthenticatedRequest } from 'src/shared/types';
 import { Session } from './types';
-import { UserDto } from 'src/shared/dto/user.dto';
 import { EmailRegisteredDto } from './dto/email-registered.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { PasswordDto } from './dto/password.dto';
+import { EmailDto } from './dto/email.dto';
+import { UserDto } from 'src/users/dto/user.dto';
+import { RegisterResponseDto } from './dto/register-response.dto';
+import { ResendActivationCodeDto } from './dto/resend-activation-code.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
   /**
-   * Log in a user.
+   * Check if the user exists.
    * @param req The request object.
-   * @returns The session created.
+   * @returns True if the user exists, false otherwise.
    * @async
    */
   @Public()
-  @UseGuards(LocalAuthGuard)
-  @Post('login')
-  login(@Request() req: AuthenticatedRequest): Promise<Session> {
-    return this.authService.login(req.user);
+  @Get('email-registered')
+  isEmailRegistered(
+    @Query('email') email: string,
+  ): Promise<EmailRegisteredDto> {
+    return this.authService.isEmailRegistered(email);
   }
 
   /**
@@ -43,31 +47,22 @@ export class AuthController {
    */
   @Public()
   @Post('register')
-  register(@Body() registerDto: RegisterDto): Promise<UserDto> {
+  register(@Body() registerDto: RegisterDto): Promise<RegisterResponseDto> {
     return this.authService.register(registerDto);
   }
 
   /**
-   * Get the user profile.
-   * @param req The request object.
-   * @returns The user profile.
-   * @async
-   */
-  @Get('me')
-  me(@Request() req: AuthenticatedRequest): Promise<UserDto> {
-    return this.authService.me(req.user.id);
-  }
-
-  /**
-   * Check if the user exists.
-   * @param req The request object.
-   * @returns True if the user exists, false otherwise.
+   * Resend the activation email.
+   * @param emailDto The email to resend the activation email.
+   * @returns The response of the resend.
    * @async
    */
   @Public()
-  @Get('email-registered')
-  exists(@Query('email') email: string): Promise<EmailRegisteredDto> {
-    return this.authService.emailRegistered(email);
+  @Post('resend-activation-code')
+  resendActivationCode(
+    @Body() emailDto: EmailDto,
+  ): Promise<ResendActivationCodeDto> {
+    return this.authService.resendActivationCode(emailDto.email);
   }
 
   /**
@@ -94,5 +89,29 @@ export class AuthController {
     @Body() passwordDto: PasswordDto,
   ): Promise<Session> {
     return this.authService.setPassword(req.user.id, passwordDto.password);
+  }
+
+  /**
+   * Get the user profile.
+   * @param req The request object.
+   * @returns The user profile.
+   * @async
+   */
+  @Get('me')
+  me(@Request() req: AuthenticatedRequest): Promise<UserDto> {
+    return this.authService.me(req.user.id);
+  }
+
+  /**
+   * Log in a user.
+   * @param req The request object.
+   * @returns The session created.
+   * @async
+   */
+  @Public()
+  @UseGuards(LocalAuthGuard)
+  @Post('login')
+  login(@Request() req: AuthenticatedRequest): Promise<Session> {
+    return this.authService.login(req.user.id);
   }
 }

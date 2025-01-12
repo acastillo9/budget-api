@@ -1,7 +1,7 @@
 import { Type } from 'class-transformer';
 import { AccountDto } from 'src/accounts/dto/account.dto';
 import CategoryDto from 'src/categories/dto/category.dto';
-import { UserDto } from 'src/shared/dto/user.dto';
+import { UserDto } from 'src/users/dto/user.dto';
 
 export class TransactionDto {
   id: string;

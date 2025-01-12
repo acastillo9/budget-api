@@ -10,6 +10,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { JWT_EXPIRATION_TIME, JWT_SECRET } from './constants';
+import { MailModule } from 'src/mail/mail.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { JWT_EXPIRATION_TIME, JWT_SECRET } from './constants';
       }),
       inject: [ConfigService],
     }),
+    MailModule,
   ],
   controllers: [AuthController],
   providers: [

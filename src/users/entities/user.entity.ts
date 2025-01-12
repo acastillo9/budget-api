@@ -22,6 +22,12 @@ export class User {
   @Prop({ type: Date })
   activationCodeExpires: Date;
 
+  @Prop({ type: Date })
+  activationCodeResendAt: Date;
+
+  @Prop({ type: Number, default: 0 })
+  activationCodeRetries: number;
+
   @Prop({
     type: String,
     enum: UserStatus,

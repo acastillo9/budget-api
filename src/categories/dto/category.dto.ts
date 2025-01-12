@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { UserDto } from 'src/shared/dto/user.dto';
+import { UserDto } from 'src/users/dto/user.dto';
 
 export default class CategoryDto {
   id: string;
