@@ -9,4 +9,6 @@ export class CreateUserDto {
   activationCodeExpires?: Date;
   activationCodeResendAt?: Date;
   activationCodeRetries?: number;
+  resetPasswordRetries?: number;
+  resetPasswordLastSentAt?: Date;
 }

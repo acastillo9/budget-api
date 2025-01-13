@@ -15,7 +15,9 @@ import {
   ACTIVATION_CODE_RESEND_LIMIT_MAX,
   ACTIVATION_CODE_RESEND_LIMIT_TIME,
   ACTIVATION_CODE_RESEND_LIMIT_TIME_DAILY,
+  PASSWORD_BYCRYPT_SALT,
   PASSWORD_RESET_JWT_EXPIRATION_TIME,
+  PASSWORD_RESET_LIMIT_MAX,
   PASSWORD_RESET_URL,
 } from './constants';
 import { UserStatus } from 'src/users/entities/user-status.enum';
@@ -26,6 +28,7 @@ import { RegisterResponseDto } from './dto/register-response.dto';
 import { ResendActivationCodeDto } from './dto/resend-activation-code.dto';
 import { UpdateUserDto } from 'src/users/dto/update-user.dto';
 import { UserSessionDto } from './dto/user-session.dto';
+import { ActivationDataDto } from 'src/users/dto/activation-data.dto';
 
 @Injectable()
 export class AuthService {
@@ -44,7 +47,11 @@ export class AuthService {
    * @async
    */
   async validateUser(email: string, password: string): Promise<UserDto | null> {
-    return this.usersService.findByEmailAndPassword(email, password);
+    const passwordStored = await this.usersService.findPasswordByEmail(email);
+    if (!passwordStored) return null;
+    const isPasswordMatching = await compare(password, passwordStored);
+    if (!isPasswordMatching) return null;
+    return this.usersService.findByEmail(email);
   }
 
   /**
@@ -56,7 +63,7 @@ export class AuthService {
    */
   async isEmailRegistered(email: string): Promise<EmailRegisteredDto> {
     const user = await this.usersService.findByEmail(email);
-    const registered = user && user.status === UserStatus.ACTIVE;
+    const registered = !!user && user.status === UserStatus.ACTIVE;
     return { registered };
   }
 
@@ -67,9 +74,11 @@ export class AuthService {
    * @async
    */
   async register(registerDto: RegisterDto): Promise<RegisterResponseDto> {
-    const user = await this.usersService.findByEmail(registerDto.email);
+    const activationData = await this.usersService.findActivationDataByEmail(
+      registerDto.email,
+    );
 
-    if (user && user.status === UserStatus.ACTIVE) {
+    if (activationData && activationData.status === UserStatus.ACTIVE) {
       throw new HttpException('User already exists', HttpStatus.CONFLICT);
     }
 
@@ -79,20 +88,43 @@ export class AuthService {
     };
 
     let savedUser: UserDto;
-    if (!user) {
-      const activationCode =
-        await this.addActivationCodeToUserDto(createUserDto);
-      savedUser = await this.usersService.create(createUserDto);
-      this.sendActivationCodeEmail(savedUser.email, activationCode);
+    let activationCodeResendAt = activationData?.activationCodeResendAt;
+    if (!activationData) {
+      const activationCodeData = await this.calculateActivationCodeData(-1);
+      savedUser = await this.usersService.create({
+        ...createUserDto,
+        activationCode: activationCodeData.hashedActivationCode,
+        activationCodeExpires: activationCodeData.activationCodeExpires,
+        activationCodeResendAt: activationCodeData.activationCodeResendAt,
+        activationCodeRetries: activationCodeData.activationCodeRetries,
+      });
+      activationCodeResendAt = activationCodeData.activationCodeResendAt;
+      this.sendActivationCodeEmail(
+        savedUser.email,
+        activationCodeData.activationCode,
+      );
     } else {
-      if (user.activationCodeResendAt <= new Date()) {
-        const activationCode =
-          await this.addActivationCodeToUserDto(createUserDto);
-        this.addRetriesToUserDto(createUserDto, user.activationCodeRetries);
-        savedUser = await this.usersService.update(user.id, createUserDto);
-        this.sendActivationCodeEmail(savedUser.email, activationCode);
+      if (activationData.activationCodeResendAt <= new Date()) {
+        const activationCodeData = await this.calculateActivationCodeData(
+          activationData.activationCodeRetries,
+        );
+        savedUser = await this.usersService.update(activationData.id, {
+          ...createUserDto,
+          activationCode: activationCodeData.hashedActivationCode,
+          activationCodeExpires: activationCodeData.activationCodeExpires,
+          activationCodeResendAt: activationCodeData.activationCodeResendAt,
+          activationCodeRetries: activationCodeData.activationCodeRetries,
+        });
+        activationCodeResendAt = activationCodeData.activationCodeResendAt;
+        this.sendActivationCodeEmail(
+          savedUser.email,
+          activationCodeData.activationCode,
+        );
       } else {
-        savedUser = await this.usersService.update(user.id, createUserDto);
+        savedUser = await this.usersService.update(
+          activationData.id,
+          createUserDto,
+        );
       }
     }
 
@@ -100,7 +132,7 @@ export class AuthService {
       id: savedUser.id,
       name: savedUser.name,
       email: savedUser.email,
-      activationCodeResendAt: savedUser.activationCodeResendAt,
+      activationCodeResendAt,
     };
   }
 
@@ -111,27 +143,33 @@ export class AuthService {
    * @async
    */
   async resendActivationCode(email: string): Promise<ResendActivationCodeDto> {
-    const user = await this.usersService.findByEmail(email);
+    const activationData =
+      await this.usersService.findActivationDataByEmail(email);
 
-    if (!user || user.status !== UserStatus.UNVERIFIED) {
+    if (!activationData || activationData.status !== UserStatus.UNVERIFIED) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
-    if (user.activationCodeResendAt > new Date()) {
+    if (activationData.activationCodeResendAt > new Date()) {
       throw new HttpException(
         'Resend limit reached',
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 
-    const userDto: UpdateUserDto = {};
-    const activationCode = await this.addActivationCodeToUserDto(userDto);
-    this.addRetriesToUserDto(userDto, user.activationCodeRetries);
-    const savedUser = await this.usersService.update(user.id, userDto);
-    this.sendActivationCodeEmail(user.email, activationCode);
+    const activationCodeData = await this.calculateActivationCodeData(
+      activationData.activationCodeRetries,
+    );
+    await this.usersService.update(activationData.id, {
+      activationCode: activationCodeData.hashedActivationCode,
+      activationCodeExpires: activationCodeData.activationCodeExpires,
+      activationCodeResendAt: activationCodeData.activationCodeResendAt,
+      activationCodeRetries: activationCodeData.activationCodeRetries,
+    });
+    this.sendActivationCodeEmail(email, activationCodeData.activationCode);
 
     return {
-      activationCodeResendAt: savedUser.activationCodeResendAt,
+      activationCodeResendAt: activationCodeData.activationCodeResendAt,
     };
   }
 
@@ -142,15 +180,20 @@ export class AuthService {
    * @async
    */
   async verifyEmail(verifyEmailDto: VerifyEmailDto): Promise<Session> {
-    const user = await this.usersService.findByEmail(verifyEmailDto.email);
+    const activationData = await this.usersService.findActivationDataByEmail(
+      verifyEmailDto.email,
+    );
 
-    if (!user || user.status !== UserStatus.UNVERIFIED) {
+    if (!activationData || activationData.status !== UserStatus.UNVERIFIED) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
     if (
-      !(await compare(verifyEmailDto.activationCode, user.activationCode)) ||
-      user.activationCodeExpires < new Date()
+      !(await compare(
+        verifyEmailDto.activationCode,
+        activationData.activationCode,
+      )) ||
+      activationData.activationCodeExpires < new Date()
     ) {
       throw new HttpException(
         'Invalid activation code',
@@ -158,15 +201,17 @@ export class AuthService {
       );
     }
 
-    const data = {
+    const data: UpdateUserDto = {
       status: UserStatus.VERIFIED_NO_PASSWORD,
       activationCode: null,
       activationCodeExpires: null,
+      activationCodeResendAt: null,
+      activationCodeRetries: 0,
     };
-    const savedUser = await this.usersService.update(user.id, data);
+    await this.usersService.update(activationData.id, data);
 
     // generate a jwt token for set password step validation
-    const payload = { sub: savedUser.id };
+    const payload = { sub: activationData.id };
     const accessToken = this.jwtService.sign(payload);
 
     return {
@@ -182,8 +227,12 @@ export class AuthService {
    * @async
    */
   async setPassword(userId: string, password: string): Promise<Session> {
-    const data = {
+    const hashedPassword = await hash(
       password,
+      Number(this.configService.get(PASSWORD_BYCRYPT_SALT)),
+    );
+    const data = {
+      password: hashedPassword,
       status: UserStatus.ACTIVE,
     };
     const savedUser = await this.usersService.update(userId, data);
@@ -234,20 +283,45 @@ export class AuthService {
    * @async
    */
   async forgotPassword(email: string): Promise<void> {
-    const user = await this.usersService.findByEmail(email);
+    const resetPasswordData =
+      await this.usersService.findResetPasswordDataByEmail(email);
 
-    if (!user || user.status !== UserStatus.ACTIVE) {
+    if (!resetPasswordData || resetPasswordData.status !== UserStatus.ACTIVE) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
+    if (
+      resetPasswordData.resetPasswordLastSentAt &&
+      resetPasswordData.resetPasswordLastSentAt > new Date()
+    ) {
+      throw new HttpException(
+        'Reset password limit reached',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    const userDto: UpdateUserDto = {};
+    userDto.resetPasswordRetries = resetPasswordData.resetPasswordRetries + 1;
+
+    if (userDto.resetPasswordRetries === PASSWORD_RESET_LIMIT_MAX) {
+      // can send again tomorrow
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      userDto.resetPasswordLastSentAt = tomorrow;
+      userDto.resetPasswordRetries = 0;
+    }
+
+    await this.usersService.update(resetPasswordData.id, userDto);
+
     // generate a jwt token for set password step validation
-    const payload = { sub: user.id };
+    const payload = { sub: resetPasswordData.id };
     const accessToken = this.jwtService.sign(payload, {
       expiresIn: this.configService.get(PASSWORD_RESET_JWT_EXPIRATION_TIME),
     });
     const resetLink = `${this.configService.get(PASSWORD_RESET_URL)}?token=${accessToken}`;
     this.mailService.sendMail(
-      user.email,
+      email,
       'Reset Your Password',
       passwordReset(resetLink),
     );
@@ -268,45 +342,41 @@ export class AuthService {
   }
 
   /**
-   * Add the activation code to the user dto.
-   * @param createUserDto The user dto to add the activation code.
+   * Get the activation code data calculated based on current date
+   * @param updateUserDto The user dto to add the activation code.
    * @returns The activation code.
    * @async
    */
-  private async addActivationCodeToUserDto(createUserDto: UpdateUserDto) {
+  private async calculateActivationCodeData(
+    retries: number,
+  ): Promise<Partial<ActivationDataDto>> {
     const activationCode = generateActivationCode();
     const hashedActivationCode = await hash(
       activationCode,
       Number(this.configService.get(ACTIVATION_CODE_BYCRYPT_SALT)),
     );
-    createUserDto.activationCode = hashedActivationCode;
-    createUserDto.activationCodeExpires = new Date(
-      Date.now() + ACTIVATION_CODE_EXPIRATION_TIME,
-    );
-    createUserDto.activationCodeResendAt = new Date(
-      Date.now() + ACTIVATION_CODE_RESEND_LIMIT_TIME,
-    );
-    return activationCode;
-  }
+    const activationCodeData = {
+      activationCode,
+      hashedActivationCode,
+      activationCodeExpires: new Date(
+        Date.now() + ACTIVATION_CODE_EXPIRATION_TIME,
+      ),
+      activationCodeResendAt: new Date(
+        Date.now() + ACTIVATION_CODE_RESEND_LIMIT_TIME,
+      ),
+      activationCodeRetries: retries + 1,
+    };
 
-  /**
-   * Add the retries to the user dto.
-   * @param createUserDto The user dto to add the retries.
-   * @param retries The current retries.
-   * @async
-   */
-  private async addRetriesToUserDto(
-    createUserDto: UpdateUserDto,
-    retries: number,
-  ) {
-    createUserDto.activationCodeRetries = retries + 1;
     if (
-      createUserDto.activationCodeRetries === ACTIVATION_CODE_RESEND_LIMIT_MAX
+      activationCodeData.activationCodeRetries ===
+      ACTIVATION_CODE_RESEND_LIMIT_MAX
     ) {
-      createUserDto.activationCodeResendAt = new Date(
+      activationCodeData.activationCodeResendAt = new Date(
         Date.now() + ACTIVATION_CODE_RESEND_LIMIT_TIME_DAILY,
       );
-      createUserDto.activationCodeRetries = 0;
+      activationCodeData.activationCodeRetries = 0;
     }
+
+    return activationCodeData;
   }
 }

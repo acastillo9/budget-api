@@ -4,72 +4,19 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User } from './entities/user.entity';
 import { Model } from 'mongoose';
 import { plainToClass } from 'class-transformer';
-import { compare, hash } from 'bcrypt';
-import { ConfigService } from '@nestjs/config';
-import { PASSWORD_BYCRYPT_SALT } from './constants';
 import { UserDto } from './dto/user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ActivationDataDto } from './dto/activation-data.dto';
+import { ResetPasswordDataDto } from './dto/reset-password-data.dto';
+import { UserStatus } from './entities/user-status.enum';
 
 @Injectable()
 export class UsersService {
   private readonly logger: Logger = new Logger(UsersService.name);
 
   constructor(
-    private readonly configService: ConfigService,
     @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
-
-  /**
-   * Find a user by email and password.
-   * @param email The email of the user.
-   * @param password The password of the user.
-   * @returns The user if found, null otherwise.
-   * @async
-   */
-  async findByEmailAndPassword(
-    email: string,
-    password: string,
-  ): Promise<UserDto | null> {
-    try {
-      const user = await this.userModel.findOne({ email });
-      if (!user) return null;
-      const isPasswordMatching = await compare(password, user.password);
-      if (!isPasswordMatching) return null;
-      return plainToClass(UserDto, user.toObject());
-    } catch (error) {
-      this.logger.error(
-        `Failed to find user by email and password: ${error.message}`,
-        error.stack,
-      );
-      throw new HttpException(
-        'Error finding the user',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * Find a user by email.
-   * @param email The email of the user to find.
-   * @returns The user found or null if not found.
-   * @async
-   */
-  async findByEmail(email: string): Promise<UserDto | null> {
-    try {
-      const user = await this.userModel.findOne({ email });
-      if (!user) return null;
-      return plainToClass(UserDto, user.toObject());
-    } catch (error) {
-      this.logger.error(
-        `Failed to find user by email: ${error.message}`,
-        error.stack,
-      );
-      throw new HttpException(
-        'Error finding the user',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
 
   /**
    * Create a new user.
@@ -106,14 +53,6 @@ export class UsersService {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
       }
 
-      // if the password is being updated, hash it
-      if (updateUserDto.password) {
-        updateUserDto.password = await hash(
-          updateUserDto.password,
-          Number(this.configService.get(PASSWORD_BYCRYPT_SALT)),
-        );
-      }
-
       user.set(updateUserDto);
       const updatedUser = await user.save();
       return plainToClass(UserDto, updatedUser.toObject());
@@ -144,6 +83,114 @@ export class UsersService {
       );
       throw new HttpException(
         'Error finding the user',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Find a user by email.
+   * @param email The email of the user to find.
+   * @returns The user found or null if not found.
+   * @async
+   */
+  async findByEmail(email: string): Promise<UserDto | null> {
+    try {
+      const user = await this.userModel.findOne({ email });
+      if (!user) return null;
+      return plainToClass(UserDto, user.toObject());
+    } catch (error) {
+      this.logger.error(
+        `Failed to find user by email: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error finding the user',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Find the password of a user by email.
+   * @param email The email of the user to find.
+   * @returns The password of the user.
+   * @async
+   */
+  async findPasswordByEmail(email: string): Promise<string | null> {
+    try {
+      const user = await this.userModel.findOne({ email });
+      if (!user) return null;
+      return user.password;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get password by email: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error getting the password',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Find the activation data of a user by email.
+   * @param email The email of the user to find.
+   * @returns The activation data of the user.
+   * @async
+   */
+  async findActivationDataByEmail(
+    email: string,
+  ): Promise<ActivationDataDto | null> {
+    try {
+      const user = await this.userModel.findOne({ email });
+      if (!user) return null;
+      return {
+        id: user.id,
+        activationCode: user.activationCode,
+        activationCodeExpires: user.activationCodeExpires,
+        activationCodeResendAt: user.activationCodeResendAt,
+        activationCodeRetries: user.activationCodeRetries,
+        status: UserStatus[user.status],
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to get activation data by email: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error getting the activation data',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Find the reset password data of a user by email.
+   * @param email The email of the user to find.
+   * @returns The reset password data of the user.
+   * @async
+   */
+  async findResetPasswordDataByEmail(
+    email: string,
+  ): Promise<ResetPasswordDataDto | null> {
+    try {
+      const user = await this.userModel.findOne({ email });
+      if (!user) return null;
+      return {
+        id: user.id,
+        resetPasswordRetries: user.resetPasswordRetries,
+        resetPasswordLastSentAt: user.resetPasswordLastSentAt,
+        status: user.status,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to get reset password data by email: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error getting the reset password data',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

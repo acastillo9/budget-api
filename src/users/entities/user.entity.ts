@@ -28,6 +28,12 @@ export class User {
   @Prop({ type: Number, default: 0 })
   activationCodeRetries: number;
 
+  @Prop({ type: Number, default: 0 })
+  resetPasswordRetries: number;
+
+  @Prop({ type: Date })
+  resetPasswordLastSentAt: Date;
+
   @Prop({
     type: String,
     enum: UserStatus,
