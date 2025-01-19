@@ -19,6 +19,7 @@ import {
   PASSWORD_RESET_JWT_EXPIRATION_TIME,
   PASSWORD_RESET_LIMIT_MAX,
   PASSWORD_RESET_URL,
+  REMEMBER_ME_TOKEN_EXPIRATION_TIME,
 } from './constants';
 import { UserStatus } from 'src/users/entities/user-status.enum';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
@@ -267,13 +268,22 @@ export class AuthService {
   /**
    * Login a user.
    * @param userId The id of the user to login.
+   * @param rememberMe If the login is remembered
    * @returns The access token.
    * @async
    */
-  async login(userId: string): Promise<Session> {
+  async login(userId: string, rememberMe: boolean): Promise<Session> {
     const payload = { sub: userId };
+    let accessToken = this.jwtService.sign(payload);
+
+    if (rememberMe) {
+      accessToken = this.jwtService.sign(payload, {
+        expiresIn: REMEMBER_ME_TOKEN_EXPIRATION_TIME,
+      });
+    }
+
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: accessToken,
     };
   }
 

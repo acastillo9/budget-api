@@ -20,6 +20,7 @@ import { EmailDto } from './dto/email.dto';
 import { RegisterResponseDto } from './dto/register-response.dto';
 import { ResendActivationCodeDto } from './dto/resend-activation-code.dto';
 import { UserSessionDto } from './dto/user-session.dto';
+import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -105,14 +106,18 @@ export class AuthController {
   /**
    * Log in a user.
    * @param req The request object.
+   * @param loginDto The data to log in the user.
    * @returns The session created.
    * @async
    */
   @Public()
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  login(@Request() req: AuthenticatedRequest): Promise<Session> {
-    return this.authService.login(req.user.id);
+  login(
+    @Request() req: AuthenticatedRequest,
+    @Body() loginDto: LoginDto,
+  ): Promise<Session> {
+    return this.authService.login(req.user.id, loginDto.rememberMe);
   }
 
   /**
