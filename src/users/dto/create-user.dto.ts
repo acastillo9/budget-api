@@ -3,6 +3,7 @@ import { UserStatus } from '../entities/user-status.enum';
 export class CreateUserDto {
   name: string;
   email: string;
+  picture?: string;
   password?: string;
   status?: UserStatus;
   activationCode?: string;

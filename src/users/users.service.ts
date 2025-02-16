@@ -2,13 +2,11 @@ import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from './entities/user.entity';
-import { Model } from 'mongoose';
+import { ClientSession, Model } from 'mongoose';
 import { plainToClass } from 'class-transformer';
 import { UserDto } from './dto/user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ActivationDataDto } from './dto/activation-data.dto';
 import { ResetPasswordDataDto } from './dto/reset-password-data.dto';
-import { UserStatus } from './entities/user-status.enum';
 
 @Injectable()
 export class UsersService {
@@ -21,13 +19,17 @@ export class UsersService {
   /**
    * Create a new user.
    * @param createUserDto The data to create the user.
+   * @param session The session to use for the transaction.
    * @returns The user created.
    * @async
    */
-  async create(createUserDto: CreateUserDto): Promise<UserDto> {
+  async create(
+    createUserDto: CreateUserDto,
+    session?: ClientSession,
+  ): Promise<UserDto> {
     try {
       const newUser = new this.userModel(createUserDto);
-      const user = await newUser.save();
+      const user = await newUser.save({ session });
       return plainToClass(UserDto, user.toObject());
     } catch (error) {
       this.logger.error(`Failed to create user: ${error.message}`, error.stack);
@@ -42,10 +44,15 @@ export class UsersService {
    * Update a user.
    * @param id The id of the user to update.
    * @param updateUserDto The data to update the user.
+   * @param session The session to use for the transaction.
    * @returns The user updated.
    * @async
    */
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<UserDto> {
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+    session?: ClientSession,
+  ): Promise<UserDto> {
     try {
       const user = await this.userModel.findById(id);
 
@@ -54,7 +61,7 @@ export class UsersService {
       }
 
       user.set(updateUserDto);
-      const updatedUser = await user.save();
+      const updatedUser = await user.save({ session });
       return plainToClass(UserDto, updatedUser.toObject());
     } catch (error) {
       this.logger.error(`Failed to update user: ${error.message}`, error.stack);
@@ -129,38 +136,6 @@ export class UsersService {
       );
       throw new HttpException(
         'Error getting the password',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * Find the activation data of a user by email.
-   * @param email The email of the user to find.
-   * @returns The activation data of the user.
-   * @async
-   */
-  async findActivationDataByEmail(
-    email: string,
-  ): Promise<ActivationDataDto | null> {
-    try {
-      const user = await this.userModel.findOne({ email });
-      if (!user) return null;
-      return {
-        id: user.id,
-        activationCode: user.activationCode,
-        activationCodeExpires: user.activationCodeExpires,
-        activationCodeResendAt: user.activationCodeResendAt,
-        activationCodeRetries: user.activationCodeRetries,
-        status: UserStatus[user.status],
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to get activation data by email: ${error.message}`,
-        error.stack,
-      );
-      throw new HttpException(
-        'Error getting the activation data',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

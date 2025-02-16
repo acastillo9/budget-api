@@ -12,8 +12,8 @@ import {
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
-import { AuthenticatedRequest } from 'src/shared/types';
 import { TransactionsQueryDto } from './dto/transactions-query.dto';
+import { AuthenticatedRequest } from 'src/core/types';
 
 @Controller('transactions')
 export class TransactionsController {

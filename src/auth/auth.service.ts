@@ -1,8 +1,8 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from 'src/users/users.service';
 import { RegisterDto } from './dto/register.dto';
-import { Session } from './types';
+import { GoogleAuthenticatedRequest, Session } from './types';
 import { EmailRegisteredDto } from './dto/email-registered.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { UserDto } from 'src/users/dto/user.dto';
@@ -30,14 +30,30 @@ import { ResendActivationCodeDto } from './dto/resend-activation-code.dto';
 import { UpdateUserDto } from 'src/users/dto/update-user.dto';
 import { UserSessionDto } from './dto/user-session.dto';
 import { ActivationDataDto } from 'src/users/dto/activation-data.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import {
+  Authentication,
+  AuthenticationDocument,
+} from './entities/authentication.entity';
+import { Model } from 'mongoose';
+import { AuthenticationProviderType } from './entities/authentication-provider-type.enum';
+import { AuthenticationDto } from './dto/authentication.dto';
+import { plainToClass } from 'class-transformer';
+import { CreateAuthenticationDto } from './dto/create-authentication.dto';
+import { DbTransactionService } from 'src/core/db-transaction.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger: Logger = new Logger(AuthService.name);
+
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
     private mailService: MailService,
+    @InjectModel(Authentication.name)
+    private readonly authenticationModel: Model<Authentication>,
+    private dbTransactionService: DbTransactionService,
   ) {}
 
   /**
@@ -63,8 +79,13 @@ export class AuthService {
    * @async
    */
   async isEmailRegistered(email: string): Promise<EmailRegisteredDto> {
-    const user = await this.usersService.findByEmail(email);
-    const registered = !!user && user.status === UserStatus.ACTIVE;
+    const emailAuthentication = await this.findAuthenticationProvider(
+      AuthenticationProviderType.EMAIL,
+      email,
+    );
+    const registered =
+      emailAuthentication &&
+      emailAuthentication.user.status === UserStatus.ACTIVE;
     return { registered };
   }
 
@@ -75,65 +96,84 @@ export class AuthService {
    * @async
    */
   async register(registerDto: RegisterDto): Promise<RegisterResponseDto> {
-    const activationData = await this.usersService.findActivationDataByEmail(
+    const emailAuthentication = await this.findAuthenticationProvider(
+      AuthenticationProviderType.EMAIL,
       registerDto.email,
     );
 
-    if (activationData && activationData.status === UserStatus.ACTIVE) {
+    // if user is already active, return conflict
+    if (
+      emailAuthentication &&
+      emailAuthentication.user.status === UserStatus.ACTIVE
+    ) {
       throw new HttpException('User already exists', HttpStatus.CONFLICT);
     }
 
-    const createUserDto: CreateUserDto = {
-      name: registerDto.name,
-      email: registerDto.email,
-    };
-
-    let savedUser: UserDto;
-    let activationCodeResendAt = activationData?.activationCodeResendAt;
-    if (!activationData) {
-      const activationCodeData = await this.calculateActivationCodeData(-1);
-      savedUser = await this.usersService.create({
-        ...createUserDto,
-        activationCode: activationCodeData.hashedActivationCode,
-        activationCodeExpires: activationCodeData.activationCodeExpires,
-        activationCodeResendAt: activationCodeData.activationCodeResendAt,
-        activationCodeRetries: activationCodeData.activationCodeRetries,
-      });
-      activationCodeResendAt = activationCodeData.activationCodeResendAt;
-      this.sendActivationCodeEmail(
-        savedUser.email,
-        activationCodeData.activationCode,
-      );
-    } else {
-      if (activationData.activationCodeResendAt <= new Date()) {
-        const activationCodeData = await this.calculateActivationCodeData(
-          activationData.activationCodeRetries,
-        );
-        savedUser = await this.usersService.update(activationData.id, {
-          ...createUserDto,
-          activationCode: activationCodeData.hashedActivationCode,
-          activationCodeExpires: activationCodeData.activationCodeExpires,
-          activationCodeResendAt: activationCodeData.activationCodeResendAt,
-          activationCodeRetries: activationCodeData.activationCodeRetries,
-        });
-        activationCodeResendAt = activationCodeData.activationCodeResendAt;
-        this.sendActivationCodeEmail(
-          savedUser.email,
-          activationCodeData.activationCode,
-        );
+    // if the email authentication is not found crete a new user and email authentication
+    if (!emailAuthentication) {
+      let activationData: ActivationDataDto;
+      const savedUser = await this.usersService.findByEmail(registerDto.email);
+      // if the user is not found, create a new user and email authentication
+      if (!savedUser) {
+        activationData =
+          await this.createNewUserAndEmailAuthentication(registerDto);
       } else {
-        savedUser = await this.usersService.update(
-          activationData.id,
-          createUserDto,
-        );
+        // create only the email authentication
+        activationData = await this.createNewEmailAuthentication(savedUser.id);
       }
+
+      this.sendActivationCodeEmail(
+        activationData.email,
+        activationData.activationCode,
+      );
+
+      return {
+        id: activationData.id,
+        name: activationData.name,
+        email: activationData.email,
+        activationCodeResendAt: activationData.activationCodeResendAt,
+      };
     }
+
+    // if the email authentication is found, resend the activation code if the resend limit is reached
+    const user = emailAuthentication.user;
+    if (user.activationCodeResendAt <= new Date()) {
+      const activationData = await this.calculateActivationCodeData(
+        user.activationCodeRetries,
+      );
+      const updatedUser = await this.usersService.update(user.id, {
+        name: registerDto.name,
+        activationCode: activationData.hashedActivationCode,
+        activationCodeExpires: activationData.activationCodeExpires,
+        activationCodeResendAt: activationData.activationCodeResendAt,
+        activationCodeRetries: activationData.activationCodeRetries,
+        status: UserStatus.UNVERIFIED,
+      });
+
+      this.sendActivationCodeEmail(
+        updatedUser.email,
+        activationData.activationCode,
+      );
+
+      return {
+        id: activationData.id,
+        name: activationData.name,
+        email: activationData.email,
+        activationCodeResendAt: activationData.activationCodeResendAt,
+      };
+    }
+
+    // simply update the user name
+    const savedUser = await this.usersService.update(user.id, {
+      name: registerDto.name,
+      status: UserStatus.UNVERIFIED,
+    });
 
     return {
       id: savedUser.id,
       name: savedUser.name,
       email: savedUser.email,
-      activationCodeResendAt,
+      activationCodeResendAt: user.activationCodeResendAt,
     };
   }
 
@@ -144,14 +184,17 @@ export class AuthService {
    * @async
    */
   async resendActivationCode(email: string): Promise<ResendActivationCodeDto> {
-    const activationData =
-      await this.usersService.findActivationDataByEmail(email);
+    const emailAuthenticationProvider = await this.findAuthenticationProvider(
+      AuthenticationProviderType.EMAIL,
+      email,
+    );
 
-    if (!activationData || activationData.status !== UserStatus.UNVERIFIED) {
+    const user = emailAuthenticationProvider?.user;
+    if (!user || user.status !== UserStatus.UNVERIFIED) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
-    if (activationData.activationCodeResendAt > new Date()) {
+    if (user.activationCodeResendAt > new Date()) {
       throw new HttpException(
         'Resend limit reached',
         HttpStatus.TOO_MANY_REQUESTS,
@@ -159,9 +202,9 @@ export class AuthService {
     }
 
     const activationCodeData = await this.calculateActivationCodeData(
-      activationData.activationCodeRetries,
+      user.activationCodeRetries,
     );
-    await this.usersService.update(activationData.id, {
+    await this.usersService.update(user.id, {
       activationCode: activationCodeData.hashedActivationCode,
       activationCodeExpires: activationCodeData.activationCodeExpires,
       activationCodeResendAt: activationCodeData.activationCodeResendAt,
@@ -181,20 +224,19 @@ export class AuthService {
    * @async
    */
   async verifyEmail(verifyEmailDto: VerifyEmailDto): Promise<Session> {
-    const activationData = await this.usersService.findActivationDataByEmail(
+    const emailAuthenticationProvider = await this.findAuthenticationProvider(
+      AuthenticationProviderType.EMAIL,
       verifyEmailDto.email,
     );
 
-    if (!activationData || activationData.status !== UserStatus.UNVERIFIED) {
+    const user = emailAuthenticationProvider?.user;
+    if (!user || user.status !== UserStatus.UNVERIFIED) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
     if (
-      !(await compare(
-        verifyEmailDto.activationCode,
-        activationData.activationCode,
-      )) ||
-      activationData.activationCodeExpires < new Date()
+      !(await compare(verifyEmailDto.activationCode, user.activationCode)) ||
+      user.activationCodeExpires < new Date()
     ) {
       throw new HttpException(
         'Invalid activation code',
@@ -204,15 +246,11 @@ export class AuthService {
 
     const data: UpdateUserDto = {
       status: UserStatus.VERIFIED_NO_PASSWORD,
-      activationCode: null,
-      activationCodeExpires: null,
-      activationCodeResendAt: null,
-      activationCodeRetries: 0,
     };
-    await this.usersService.update(activationData.id, data);
+    await this.usersService.update(user.id, data);
 
     // generate a jwt token for set password step validation
-    const payload = { sub: activationData.id };
+    const payload = { sub: user.id };
     const accessToken = this.jwtService.sign(payload);
 
     return {
@@ -230,11 +268,16 @@ export class AuthService {
   async setPassword(userId: string, password: string): Promise<Session> {
     const hashedPassword = await hash(
       password,
-      Number(this.configService.get(PASSWORD_BYCRYPT_SALT)),
+      Number(this.configService.getOrThrow(PASSWORD_BYCRYPT_SALT)),
     );
     const data = {
       password: hashedPassword,
       status: UserStatus.ACTIVE,
+      activationCode: null,
+      activationCodeExpires: null,
+      activationCodeResendAt: null,
+      activationCodeRetries: 0,
+      resetPasswordRetries: 0,
     };
     const savedUser = await this.usersService.update(userId, data);
 
@@ -272,7 +315,7 @@ export class AuthService {
    * @returns The access token.
    * @async
    */
-  async login(userId: string, rememberMe: boolean): Promise<Session> {
+  async login(userId: string, rememberMe: boolean = false): Promise<Session> {
     const payload = { sub: userId };
     let accessToken = this.jwtService.sign(payload);
 
@@ -327,14 +370,88 @@ export class AuthService {
     // generate a jwt token for set password step validation
     const payload = { sub: resetPasswordData.id };
     const accessToken = this.jwtService.sign(payload, {
-      expiresIn: this.configService.get(PASSWORD_RESET_JWT_EXPIRATION_TIME),
+      expiresIn: this.configService.getOrThrow(
+        PASSWORD_RESET_JWT_EXPIRATION_TIME,
+      ),
     });
-    const resetLink = `${this.configService.get(PASSWORD_RESET_URL)}?token=${accessToken}`;
+    const resetLink = `${this.configService.getOrThrow(PASSWORD_RESET_URL)}?token=${accessToken}`;
     this.mailService.sendMail(
       email,
       'Reset Your Password',
       passwordReset(resetLink),
     );
+  }
+
+  /**
+   * Login a user with google.
+   * @param req The request object.
+   * @returns The session created.
+   * @async
+   */
+  async googleLogin(req: GoogleAuthenticatedRequest) {
+    if (!req.user) {
+      throw new HttpException('Login fail', HttpStatus.BAD_REQUEST);
+    }
+
+    const googleAuthentication = await this.findAuthenticationProvider(
+      AuthenticationProviderType.GOOGLE,
+      req.user.sub,
+    );
+
+    if (!googleAuthentication) {
+      let user = await this.usersService.findByEmail(req.user.email);
+      try {
+        let savedAuthentication: AuthenticationDocument;
+        if (!user) {
+          // create the user and the google authentication
+          savedAuthentication = await this.dbTransactionService.runTransaction(
+            async (session) => {
+              const createUserDto: CreateUserDto = {
+                name: req.user.displayName,
+                email: req.user.email,
+                picture: req.user.picture,
+                status: UserStatus.ACTIVE,
+              };
+              user = await this.usersService.create(createUserDto, session);
+
+              const createAuthenticationDto: CreateAuthenticationDto = {
+                providerType: AuthenticationProviderType.GOOGLE,
+                providerUserId: req.user.sub,
+                user: user.id,
+              };
+              const newAuthentication = new this.authenticationModel(
+                createAuthenticationDto,
+              );
+              return newAuthentication.save({ session });
+            },
+          );
+        } else {
+          // link the google authentication to the user
+          const createAuthenticationDto: CreateAuthenticationDto = {
+            providerType: AuthenticationProviderType.GOOGLE,
+            providerUserId: req.user.sub,
+            user: user.id,
+          };
+          const newAuthentication = new this.authenticationModel(
+            createAuthenticationDto,
+          );
+          savedAuthentication = await newAuthentication.save();
+        }
+
+        return this.login(savedAuthentication.user.id);
+      } catch (error) {
+        this.logger.error(
+          `Failed to create authentication: ${error.message}`,
+          error.stack,
+        );
+        throw new HttpException(
+          'Error creating the authentication',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    }
+
+    return this.login(googleAuthentication.user.id);
   }
 
   /**
@@ -359,11 +476,11 @@ export class AuthService {
    */
   private async calculateActivationCodeData(
     retries: number,
-  ): Promise<Partial<ActivationDataDto>> {
+  ): Promise<ActivationDataDto> {
     const activationCode = generateActivationCode();
     const hashedActivationCode = await hash(
       activationCode,
-      Number(this.configService.get(ACTIVATION_CODE_BYCRYPT_SALT)),
+      Number(this.configService.getOrThrow(ACTIVATION_CODE_BYCRYPT_SALT)),
     );
     const activationCodeData = {
       activationCode,
@@ -388,5 +505,132 @@ export class AuthService {
     }
 
     return activationCodeData;
+  }
+
+  /**
+   * Find an authentication provider by provider type and provider user id.
+   * @param providerType The provider type to find.
+   * @param providerUserId The provider user id to find.
+   * @returns The authentication provider found.
+   * @async
+   */
+  private async findAuthenticationProvider(
+    providerType: AuthenticationProviderType,
+    providerUserId: string,
+  ): Promise<AuthenticationDto | null> {
+    try {
+      const authentication = await this.authenticationModel.findOne({
+        providerType,
+        providerUserId,
+      });
+      if (!authentication) return null;
+      return plainToClass(AuthenticationDto, authentication.toObject());
+    } catch (error) {
+      this.logger.error(
+        `Failed to find authentication provider: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error finding the authentication provider',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Create a new user and email authentication.
+   * @param registerDto The data to create the user.
+   * @returns The activation data.
+   * @async
+   */
+  private async createNewUserAndEmailAuthentication(
+    registerDto: RegisterDto,
+  ): Promise<ActivationDataDto> {
+    const activationCodeData = await this.calculateActivationCodeData(-1);
+    try {
+      return this.dbTransactionService.runTransaction(async (session) => {
+        const createUserDto: CreateUserDto = {
+          name: registerDto.name,
+          email: registerDto.email,
+          activationCode: activationCodeData.hashedActivationCode,
+          activationCodeExpires: activationCodeData.activationCodeExpires,
+          activationCodeResendAt: activationCodeData.activationCodeResendAt,
+          activationCodeRetries: activationCodeData.activationCodeRetries,
+        };
+        const newUser = await this.usersService.create(createUserDto, session);
+        const createAuthenticationDto: CreateAuthenticationDto = {
+          providerType: AuthenticationProviderType.EMAIL,
+          providerUserId: newUser.email,
+          user: newUser.id,
+        };
+        const newAuthentication = new this.authenticationModel(
+          createAuthenticationDto,
+        );
+        await newAuthentication.save({ session });
+        return {
+          ...activationCodeData,
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+        };
+      });
+    } catch (error) {
+      this.logger.error(`Failed to create user: ${error.message}`, error.stack);
+      throw new HttpException(
+        'Error creating the user',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Create a new email authentication.
+   * @param userId The id of the user to create the email authentication.
+   * @returns The activation data.
+   * @async
+   */
+  private async createNewEmailAuthentication(
+    userId: string,
+  ): Promise<ActivationDataDto> {
+    try {
+      return this.dbTransactionService.runTransaction(async (session) => {
+        const activationCodeData = await this.calculateActivationCodeData(-1);
+        const updatedUser = await this.usersService.update(
+          userId,
+          {
+            activationCode: activationCodeData.hashedActivationCode,
+            activationCodeExpires: activationCodeData.activationCodeExpires,
+            activationCodeResendAt: activationCodeData.activationCodeResendAt,
+            activationCodeRetries: activationCodeData.activationCodeRetries,
+            status: UserStatus.UNVERIFIED,
+          },
+          session,
+        );
+        const createAuthenticationDto: CreateAuthenticationDto = {
+          providerType: AuthenticationProviderType.EMAIL,
+          providerUserId: updatedUser.email,
+          user: updatedUser.id,
+        };
+        const newAuthentication = new this.authenticationModel(
+          createAuthenticationDto,
+        );
+        await newAuthentication.save({ session });
+        return {
+          ...activationCodeData,
+          id: updatedUser.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+        };
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to create authentication: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error creating the authentication',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }

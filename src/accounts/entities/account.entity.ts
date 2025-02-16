@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes } from 'mongoose';
 import { CurrencyCode } from './currency-code.enum';
 import { UserDocument } from 'src/users/entities/user.entity';
-import { BaseSchema } from 'src/shared/schemas';
+import { BaseSchema } from 'src/core/schemas';
 
 export type AccountDocument = HydratedDocument<Account>;
 

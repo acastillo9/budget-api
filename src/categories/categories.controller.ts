@@ -12,7 +12,7 @@ import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import CategoryDto from './dto/category.dto';
-import { AuthenticatedRequest } from 'src/shared/types';
+import { AuthenticatedRequest } from 'src/core/types';
 
 @Controller('categories')
 export class CategoriesController {

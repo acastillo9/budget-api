@@ -4,15 +4,16 @@ import {
   Get,
   Post,
   Query,
-  Request,
+  Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { LocalAuthGuard } from './local-auth.guard';
 import { RegisterDto } from './dto/register.dto';
-import { AuthenticatedRequest } from 'src/shared/types';
-import { Session } from './types';
+import { AuthenticatedRequest } from 'src/core/types';
+import { GoogleAuthenticatedRequest, Session } from './types';
 import { EmailRegisteredDto } from './dto/email-registered.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { PasswordDto } from './dto/password.dto';
@@ -21,10 +22,16 @@ import { RegisterResponseDto } from './dto/register-response.dto';
 import { ResendActivationCodeDto } from './dto/resend-activation-code.dto';
 import { UserSessionDto } from './dto/user-session.dto';
 import { LoginDto } from './dto/login.dto';
+import { GoogleOAuthGuard } from './google-oauth.guard';
+import { Response } from 'express';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private configService: ConfigService,
+  ) {}
 
   /**
    * Check if the user exists.
@@ -86,7 +93,7 @@ export class AuthController {
    */
   @Post('set-password')
   setPassword(
-    @Request() req: AuthenticatedRequest,
+    @Req() req: AuthenticatedRequest,
     @Body() passwordDto: PasswordDto,
   ): Promise<Session> {
     return this.authService.setPassword(req.user.id, passwordDto.password);
@@ -99,7 +106,7 @@ export class AuthController {
    * @async
    */
   @Get('me')
-  me(@Request() req: AuthenticatedRequest): Promise<UserSessionDto> {
+  me(@Req() req: AuthenticatedRequest): Promise<UserSessionDto> {
     return this.authService.me(req.user.id);
   }
 
@@ -111,10 +118,10 @@ export class AuthController {
    * @async
    */
   @Public()
-  @UseGuards(LocalAuthGuard)
   @Post('login')
+  @UseGuards(LocalAuthGuard)
   login(
-    @Request() req: AuthenticatedRequest,
+    @Req() req: AuthenticatedRequest,
     @Body() loginDto: LoginDto,
   ): Promise<Session> {
     return this.authService.login(req.user.id, loginDto.rememberMe);
@@ -130,5 +137,34 @@ export class AuthController {
   @Post('forgot-password')
   forgotPassword(@Body() emailDto: EmailDto): Promise<void> {
     return this.authService.forgotPassword(emailDto.email);
+  }
+
+  /**
+   * Google OAuth.
+   * @async
+   */
+  @Public()
+  @Get('google')
+  @UseGuards(GoogleOAuthGuard)
+  async googleAuth() {}
+
+  /**
+   * Google OAuth redirect.
+   * @param req The request object.
+   * @param res The response object.
+   * @async
+   */
+  @Public()
+  @Get('google-redirect')
+  @UseGuards(GoogleOAuthGuard)
+  async googleAuthRedirect(
+    @Req() req: GoogleAuthenticatedRequest,
+    @Res() res: Response,
+  ) {
+    const session: Session = await this.authService.googleLogin(req);
+    return res.redirect(
+      301,
+      `${this.configService.getOrThrow('GOOGLE_CLIENT_CALLBACK_URL')}?access_token=${session.access_token}`,
+    );
   }
 }

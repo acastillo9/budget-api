@@ -8,7 +8,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
-  const isDev = configService.get('NODE_ENV') === 'development';
+  const isDev = configService.getOrThrow('NODE_ENV') === 'development';
   if (isDev) {
     mongoose.set('debug', true);
   }
@@ -23,6 +23,6 @@ async function bootstrap() {
   );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
-  await app.listen(configService.get('PORT') || 3000);
+  await app.listen(configService.getOrThrow('PORT'));
 }
 bootstrap();

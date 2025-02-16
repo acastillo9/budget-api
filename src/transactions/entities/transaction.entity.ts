@@ -5,7 +5,7 @@ import { CategoryDocument } from 'src/categories/entities/category.entity';
 import { TransactionType } from './transaction-type.enum';
 import { AccountDocument } from 'src/accounts/entities/account.entity';
 import { UserDocument } from 'src/users/entities/user.entity';
-import { AuditableSchema } from 'src/shared/schemas';
+import { AuditableSchema } from 'src/core/schemas';
 
 export type TransactionDocument = HydratedDocument<Transaction>;
 

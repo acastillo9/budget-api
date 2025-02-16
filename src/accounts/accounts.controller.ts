@@ -11,8 +11,8 @@ import {
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
-import { AuthenticatedRequest } from 'src/shared/types';
 import { AccountDto } from './dto/account.dto';
+import { AuthenticatedRequest } from 'src/core/types';
 
 @Controller('accounts')
 export class AccountsController {
