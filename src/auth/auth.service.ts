@@ -476,6 +476,10 @@ export class AuthService {
     );
 
     const hashedPassword = await hash(password, Number(PASSWORD_BYCRYPT_SALT));
+    const hashedRefreshToken = await hash(
+      tokens.refreshToken,
+      Number(PASSWORD_BYCRYPT_SALT),
+    );
     const data = {
       password: hashedPassword,
       status: AuthenticationProviderStatus.ACTIVE,
@@ -483,6 +487,7 @@ export class AuthService {
       setPasswordExpiresAt: null,
       setPasswordRetries: 0,
       setPasswordLastSentAt: null,
+      refreshToken: hashedRefreshToken,
     };
     await this.updateAuthenticationProvider(
       emailAuthenticationProvider.id,
