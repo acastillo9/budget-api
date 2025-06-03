@@ -6,7 +6,6 @@ import { ClientSession, Model } from 'mongoose';
 import { plainToClass } from 'class-transformer';
 import { UserDto } from './dto/user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ResetPasswordDataDto } from './dto/reset-password-data.dto';
 
 @Injectable()
 export class UsersService {
@@ -113,59 +112,6 @@ export class UsersService {
       );
       throw new HttpException(
         'Error finding the user',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * Find the password of a user by email.
-   * @param email The email of the user to find.
-   * @returns The password of the user.
-   * @async
-   */
-  async findPasswordByEmail(email: string): Promise<string | null> {
-    try {
-      const user = await this.userModel.findOne({ email });
-      if (!user) return null;
-      return user.password;
-    } catch (error) {
-      this.logger.error(
-        `Failed to get password by email: ${error.message}`,
-        error.stack,
-      );
-      throw new HttpException(
-        'Error getting the password',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * Find the reset password data of a user by email.
-   * @param email The email of the user to find.
-   * @returns The reset password data of the user.
-   * @async
-   */
-  async findResetPasswordDataByEmail(
-    email: string,
-  ): Promise<ResetPasswordDataDto | null> {
-    try {
-      const user = await this.userModel.findOne({ email });
-      if (!user) return null;
-      return {
-        id: user.id,
-        resetPasswordRetries: user.resetPasswordRetries,
-        resetPasswordLastSentAt: user.resetPasswordLastSentAt,
-        status: user.status,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to get reset password data by email: ${error.message}`,
-        error.stack,
-      );
-      throw new HttpException(
-        'Error getting the reset password data',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

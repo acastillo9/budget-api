@@ -6,7 +6,6 @@ import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
   const configService = app.get(ConfigService);
   const isDev = configService.getOrThrow('NODE_ENV') === 'development';
   if (isDev) {

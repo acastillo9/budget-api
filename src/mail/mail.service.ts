@@ -1,25 +1,21 @@
-import { MailerService } from '@nestjs-modules/mailer';
+import { ISendMailOptions, MailerService } from '@nestjs-modules/mailer';
 import { Injectable, Logger } from '@nestjs/common';
+import { I18nContext } from 'nestjs-i18n';
 
 @Injectable()
 export class MailService {
   private readonly logger: Logger = new Logger(MailService.name);
 
-  constructor(private readonly mailService: MailerService) {}
+  constructor(private readonly mailerService: MailerService) {}
 
-  sendMail(
-    to: string,
-    subject: string,
-    html: string,
-    from: string = 'Budget App <ac.budget.app@gmail.com>',
-  ) {
+  async sendMail(sendMailOptions: ISendMailOptions) {
     try {
-      return this.mailService.sendMail({
-        from,
-        to,
-        subject,
-        html,
-      });
+      // hbsHelper needs to know the current language
+      sendMailOptions.context = {
+        ...(sendMailOptions.context || {}),
+        i18nLang: I18nContext.current().lang || 'en',
+      };
+      return await this.mailerService.sendMail(sendMailOptions);
     } catch (error) {
       this.logger.error(`Failed to send email: ${error.message}`, error.stack);
       throw new Error('Error sending email');

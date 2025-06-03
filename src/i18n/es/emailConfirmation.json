@@ -1,0 +1,12 @@
+{
+  "greeting": "Hola,",
+  "ignoreIfNotYou": "Si no creaste una cuenta en Budget App, puedes ignorar este correo de forma segura.",
+  "instruction": "Gracias por registrarte en Budget App. Para completar tu registro, utiliza el siguiente código de un solo uso:",
+  "postCodeInstruction": "Ingresa este código en Budget App para verificar tu dirección de correo electrónico.",
+  "preheader": "Usa el código {code} para verificar tu cuenta en Budget App.",
+  "regards": "Saludos cordiales,",
+  "rightsReserved": "Todos los derechos reservados.",
+  "signature": "El equipo de Budget.",
+  "subject": "Confirma tu correo electrónico",
+  "welcome": "¡Bienvenido a Budget App!"
+}

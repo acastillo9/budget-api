@@ -4,7 +4,7 @@ export class ActivationDataDto {
   email?: string;
   activationCode: string;
   hashedActivationCode?: string;
-  activationCodeExpires: Date;
+  activationCodeExpiresAt: Date;
   activationCodeResendAt: Date;
   activationCodeRetries: number;
 }

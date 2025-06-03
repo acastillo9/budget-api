@@ -1,9 +1,12 @@
 import { Request } from 'express';
 
-export interface UserSession {
+export interface Session {
   id: string;
+  name?: string;
+  refreshToken?: string;
+  isLongLived?: boolean;
 }
 
 export interface AuthenticatedRequest extends Request {
-  user: UserSession;
+  user: Session;
 }

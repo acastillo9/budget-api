@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Post,
   Query,
   Req,
@@ -12,19 +13,20 @@ import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { LocalAuthGuard } from './local-auth.guard';
 import { RegisterDto } from './dto/register.dto';
-import { AuthenticatedRequest } from 'src/core/types';
-import { GoogleAuthenticatedRequest, Session } from './types';
+import { AuthenticatedRequest, Session } from 'src/core/types';
+import { GoogleAuthenticatedRequest, Credentials } from './types';
 import { EmailRegisteredDto } from './dto/email-registered.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
-import { PasswordDto } from './dto/password.dto';
+import { SetPasswordDto } from './dto/set-password.dto';
 import { EmailDto } from './dto/email.dto';
 import { RegisterResponseDto } from './dto/register-response.dto';
 import { ResendActivationCodeDto } from './dto/resend-activation-code.dto';
-import { UserSessionDto } from './dto/user-session.dto';
 import { LoginDto } from './dto/login.dto';
 import { GoogleOAuthGuard } from './google-oauth.guard';
 import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
+import { JwtRefreshGuard } from './jwt-refresh.guard';
+import { AuthenticationProviderType } from './entities/authentication-provider-type.enum';
 
 @Controller('auth')
 export class AuthController {
@@ -48,7 +50,7 @@ export class AuthController {
   }
 
   /**
-   * Register a new user.
+   * Register a new user by email.
    * @param registerDto The data to register the user.
    * @returns The user created.
    * @async
@@ -56,7 +58,7 @@ export class AuthController {
   @Public()
   @Post('register')
   register(@Body() registerDto: RegisterDto): Promise<RegisterResponseDto> {
-    return this.authService.register(registerDto);
+    return this.authService.registerByEmail(registerDto);
   }
 
   /**
@@ -81,7 +83,7 @@ export class AuthController {
    */
   @Public()
   @Post('verify-email')
-  verifyEmail(@Body() verifyEmailDto: VerifyEmailDto): Promise<Session> {
+  verifyEmail(@Body() verifyEmailDto: VerifyEmailDto): Promise<Credentials> {
     return this.authService.verifyEmail(verifyEmailDto);
   }
 
@@ -91,23 +93,13 @@ export class AuthController {
    * @returns The session created.
    * @async
    */
-  @Post('set-password')
+  @Public()
+  @Post('set-password/:token')
   setPassword(
-    @Req() req: AuthenticatedRequest,
-    @Body() passwordDto: PasswordDto,
-  ): Promise<Session> {
-    return this.authService.setPassword(req.user.id, passwordDto.password);
-  }
-
-  /**
-   * Get the user profile.
-   * @param req The request object.
-   * @returns The user profile.
-   * @async
-   */
-  @Get('me')
-  me(@Req() req: AuthenticatedRequest): Promise<UserSessionDto> {
-    return this.authService.me(req.user.id);
+    @Param('token') token: string,
+    @Body() passwordDto: SetPasswordDto,
+  ): Promise<Credentials> {
+    return this.authService.setPassword(token, passwordDto.password);
   }
 
   /**
@@ -120,11 +112,53 @@ export class AuthController {
   @Public()
   @Post('login')
   @UseGuards(LocalAuthGuard)
-  login(
-    @Req() req: AuthenticatedRequest,
-    @Body() loginDto: LoginDto,
-  ): Promise<Session> {
-    return this.authService.login(req.user.id, loginDto.rememberMe);
+  login(@Body() loginDto: LoginDto): Promise<Credentials> {
+    return this.authService.login(
+      AuthenticationProviderType.EMAIL,
+      loginDto.email,
+      loginDto.rememberMe,
+    );
+  }
+
+  /**
+   * Get the user profile.
+   * @param req The request object.
+   * @returns The user profile.
+   * @async
+   */
+  @Get('me')
+  me(@Req() req: AuthenticatedRequest): Session {
+    return {
+      id: req.user.id,
+      name: req.user.name,
+    };
+  }
+
+  /**
+   * Log out the user.
+   * @param req The request object.
+   * @returns The response of the logout.
+   * @async
+   */
+  @Get('logout')
+  logout(@Req() req: AuthenticatedRequest) {
+    this.authService.logout(req.user.id);
+  }
+
+  /**
+   * Refresh the access token.
+   * @param req The request object.
+   * @returns The new access token.
+   * @async
+   */
+  @Public()
+  @Get('refresh')
+  @UseGuards(JwtRefreshGuard)
+  refreshTokens(@Req() req: AuthenticatedRequest) {
+    const authId = req.user.id;
+    const refreshToken = req.user.refreshToken;
+    const isLongLived = req.user.isLongLived;
+    return this.authService.refreshTokens(authId, refreshToken, isLongLived);
   }
 
   /**
@@ -137,6 +171,18 @@ export class AuthController {
   @Post('forgot-password')
   forgotPassword(@Body() emailDto: EmailDto): Promise<void> {
     return this.authService.forgotPassword(emailDto.email);
+  }
+
+  /**
+   * Verify the reset password token.
+   * @param token The reset password token.
+   * @returns True if the token is valid, false otherwise.
+   * @async
+   */
+  @Public()
+  @Get('verify-set-password-token/:token')
+  verifySetPasswordToken(@Param('token') token: string): Promise<boolean> {
+    return this.authService.validateResetPasswordToken(token);
   }
 
   /**
@@ -161,10 +207,10 @@ export class AuthController {
     @Req() req: GoogleAuthenticatedRequest,
     @Res() res: Response,
   ) {
-    const session: Session = await this.authService.googleLogin(req);
+    const session: Credentials = await this.authService.googleLogin(req);
     return res.redirect(
       301,
-      `${this.configService.getOrThrow('GOOGLE_CLIENT_CALLBACK_URL')}?access_token=${session.access_token}`,
+      `${this.configService.getOrThrow('GOOGLE_CLIENT_CALLBACK_URL')}?access_token=${session.access_token}&refresh_token=${session.refresh_token}`,
     );
   }
 }

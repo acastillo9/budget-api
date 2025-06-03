@@ -1,0 +1,12 @@
+{
+  "greeting": "Hi there,",
+  "ignoreIfNotYou": "If you didn’t create an account with Budget App, you can safely ignore this email.",
+  "instruction": "Thank you for registering to Budget App. To complete your registration, please use the following one-time code:",
+  "postCodeInstruction": "Enter this code in the Budget App to verify your email address.",
+  "preheader": "Use code {code} to verify your Budget App.",
+  "regards": "Best regards,",
+  "rightsReserved": "All rights reserved.",
+  "signature": "The Budget Team.",
+  "subject": "Confirm your email",
+  "welcome": "Welcome to Budget App!"
+}

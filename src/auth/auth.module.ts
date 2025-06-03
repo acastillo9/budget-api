@@ -6,37 +6,30 @@ import { APP_GUARD } from '@nestjs/core';
 import { PassportModule } from '@nestjs/passport';
 import { LocalStrategy } from './local.strategy';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { JWT_EXPIRATION_TIME, JWT_SECRET } from './constants';
 import { MailModule } from 'src/mail/mail.module';
 import { GoogleStrategy } from './google.strategy';
 import { MongooseModule } from '@nestjs/mongoose';
 import {
-  Authentication,
-  AuthenticationSchema,
-} from './entities/authentication.entity';
+  AuthenticationProvider,
+  AuthenticationProviderSchema,
+} from './entities/authentication-provider.entity';
 import { CoreModule } from 'src/core/core.module';
+import { JwtRefreshStrategy } from './jwt-refresh.strategy';
 
 @Module({
   imports: [
     CoreModule,
     UsersModule,
     PassportModule,
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.getOrThrow(JWT_SECRET),
-        signOptions: {
-          expiresIn: configService.getOrThrow(JWT_EXPIRATION_TIME),
-        },
-      }),
-      inject: [ConfigService],
-    }),
+    JwtModule.register({}),
     MailModule,
     MongooseModule.forFeature([
-      { name: Authentication.name, schema: AuthenticationSchema },
+      {
+        name: AuthenticationProvider.name,
+        schema: AuthenticationProviderSchema,
+      },
     ]),
   ],
   controllers: [AuthController],
@@ -44,6 +37,7 @@ import { CoreModule } from 'src/core/core.module';
     AuthService,
     LocalStrategy,
     JwtStrategy,
+    JwtRefreshStrategy,
     GoogleStrategy,
     {
       provide: APP_GUARD,

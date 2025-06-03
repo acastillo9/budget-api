@@ -4,10 +4,10 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JWT_SECRET } from './constants';
 import { JwtPayload } from './types';
-import { UserSession } from 'src/core/types';
+import { Session } from 'src/core/types';
 
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
+export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(private configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -16,7 +16,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: JwtPayload): Promise<UserSession> {
-    return { id: payload.sub };
+  async validate(payload: JwtPayload): Promise<Session> {
+    return { id: payload.sub, name: payload.name };
   }
 }
