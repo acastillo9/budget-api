@@ -158,22 +158,22 @@
         <mxCell id="GtB9pWS0f8hiLUgauO-V-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="E6XDSwYtZxgFJLBzwyTR-2" target="E6XDSwYtZxgFJLBzwyTR-9" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p6ty_ED9nkUPZI39vZnu-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" target="p6ty_ED9nkUPZI39vZnu-4" edge="1">
+        <mxCell id="p6ty_ED9nkUPZI39vZnu-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" target="p6ty_ED9nkUPZI39vZnu-4" edge="1" source="p6ty_ED9nkUPZI39vZnu-1">
           <mxGeometry relative="1" as="geometry">
-            <mxPoint x="1063" y="876" as="sourcePoint" />
+            <mxPoint x="1064" y="900" as="sourcePoint" />
           </mxGeometry>
         </mxCell>
         <mxCell id="p6ty_ED9nkUPZI39vZnu-1" value="AuthenticationProvider" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="946" y="575" width="234" height="300" as="geometry" />
+          <mxGeometry x="946" y="595" width="234" height="260" as="geometry" />
         </mxCell>
         <mxCell id="p6ty_ED9nkUPZI39vZnu-2" value="- id: string&lt;div&gt;&lt;div&gt;-&amp;nbsp;&lt;span style=&quot;font-family: var(--ds-font-family-code); font-size: 12.573px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;providerUserId&lt;/span&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;: string&lt;/span&gt;&lt;br&gt;&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;div&gt;- activationCode: string&lt;/div&gt;&lt;div&gt;- activationCodeExpiresAt: Date&lt;/div&gt;&lt;div&gt;- activationCodeResendAt: Date&lt;/div&gt;&lt;div&gt;- activationCodeRetries: number&lt;/div&gt;&lt;/div&gt;&lt;div&gt;- refreshToken: string&lt;/div&gt;&lt;div&gt;- password: string&lt;/div&gt;&lt;div&gt;- setPasswordToken: string&lt;br&gt;&lt;div&gt;- setPasswordExpiresAt: Date&lt;/div&gt;&lt;div&gt;- setPasswordRetries: number&lt;/div&gt;&lt;div&gt;- setPasswordLastSentAt: Date&lt;/div&gt;&lt;/div&gt;" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="p6ty_ED9nkUPZI39vZnu-1" vertex="1">
-          <mxGeometry y="26" width="234" height="234" as="geometry" />
+          <mxGeometry y="26" width="234" height="194" as="geometry" />
         </mxCell>
         <mxCell id="p6ty_ED9nkUPZI39vZnu-3" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" parent="p6ty_ED9nkUPZI39vZnu-1" vertex="1">
-          <mxGeometry y="260" width="234" height="40" as="geometry" />
+          <mxGeometry y="220" width="234" height="40" as="geometry" />
         </mxCell>
         <mxCell id="p6ty_ED9nkUPZI39vZnu-4" value="&lt;div&gt;&lt;i style=&quot;font-weight: 400;&quot;&gt;&amp;lt;&amp;lt;Enum&amp;gt;&amp;gt;&lt;/i&gt;&lt;br&gt;&lt;/div&gt;Authentication&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;ProviderType&lt;/span&gt;" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="962" y="970" width="204" height="130" as="geometry">
+          <mxGeometry x="961" y="950" width="204" height="130" as="geometry">
             <mxRectangle x="205" y="40" width="130" height="30" as="alternateBounds" />
           </mxGeometry>
         </mxCell>
@@ -184,10 +184,10 @@
           <mxGeometry y="90" width="204" height="40" as="geometry" />
         </mxCell>
         <mxCell id="p6ty_ED9nkUPZI39vZnu-8" value="1" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
-          <mxGeometry x="1034" y="940" width="30" height="30" as="geometry" />
+          <mxGeometry x="1033" y="920" width="30" height="30" as="geometry" />
         </mxCell>
         <mxCell id="p6ty_ED9nkUPZI39vZnu-9" value="0..*" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
-          <mxGeometry x="1023" y="875" width="40" height="30" as="geometry" />
+          <mxGeometry x="1023" y="855" width="40" height="30" as="geometry" />
         </mxCell>
         <mxCell id="p6ty_ED9nkUPZI39vZnu-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="p6ty_ED9nkUPZI39vZnu-2" target="E6XDSwYtZxgFJLBzwyTR-9" edge="1">
           <mxGeometry relative="1" as="geometry" />
