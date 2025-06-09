@@ -140,7 +140,7 @@ export class AuthController {
    * @returns The response of the logout.
    * @async
    */
-  @Get('logout')
+  @Post('logout')
   logout(@Req() req: AuthenticatedRequest) {
     this.authService.logout(req.user.id);
   }
