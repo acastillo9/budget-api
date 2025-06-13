@@ -22,16 +22,9 @@ export class AccountsService {
    * @returns The account created.
    * @async
    */
-  async create(
-    createAccountDto: CreateAccountDto,
-    userId: string,
-  ): Promise<AccountDto> {
-    const newAccount = {
-      ...createAccountDto,
-      user: userId,
-    };
+  async create(createAccountDto: CreateAccountDto): Promise<AccountDto> {
     try {
-      const accountModel = new this.accountModel(newAccount);
+      const accountModel = new this.accountModel(createAccountDto);
       const savedAccount = await accountModel.save();
       return plainToClass(AccountDto, savedAccount.toObject());
     } catch (error) {
@@ -54,7 +47,7 @@ export class AccountsService {
    */
   async findAll(userId: string): Promise<AccountDto[]> {
     try {
-      const accounts = await this.accountModel.find({ user: userId }).exec();
+      const accounts = await this.accountModel.find({ user: userId });
       return accounts.map((account) =>
         plainToClass(AccountDto, account.toObject()),
       );
@@ -77,19 +70,17 @@ export class AccountsService {
    * @returns The account found.
    * @async
    */
-  async findOne(id: string, userId: string): Promise<AccountDto> {
+  async findById(id: string, userId: string): Promise<AccountDto> {
     try {
-      const account = await this.accountModel
-        .findOne({ _id: id, user: userId })
-        .exec();
+      const account = await this.accountModel.findOne({
+        _id: id,
+        user: userId,
+      });
       if (!account) {
         throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
       }
       return plainToClass(AccountDto, account.toObject());
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
       this.logger.error(
         `Failed to find account: ${error.message}`,
         error.stack,
@@ -115,19 +106,21 @@ export class AccountsService {
     userId: string,
   ): Promise<AccountDto> {
     try {
-      const updatedAccount = await this.accountModel
-        .findOneAndUpdate({ _id: id, user: userId }, updateAccountDto, {
+      const updatedAccount = await this.accountModel.findOneAndUpdate(
+        {
+          _id: id,
+          user: userId,
+        },
+        updateAccountDto,
+        {
           new: true,
-        })
-        .exec();
+        },
+      );
       if (!updatedAccount) {
         throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
       }
       return plainToClass(AccountDto, updatedAccount.toObject());
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
       this.logger.error(
         `Failed to update account: ${error.message}`,
         error.stack,
@@ -148,20 +141,15 @@ export class AccountsService {
    */
   async remove(id: string, userId: string): Promise<AccountDto> {
     try {
-      const deletedAccount = await this.accountModel
-        .findOneAndDelete({
-          _id: id,
-          user: userId,
-        })
-        .exec();
+      const deletedAccount = await this.accountModel.findOneAndDelete({
+        _id: id,
+        user: userId,
+      });
       if (!deletedAccount) {
         throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
       }
       return plainToClass(AccountDto, deletedAccount.toObject());
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
       this.logger.error(
         `Failed to remove account: ${error.message}`,
         error.stack,
@@ -173,38 +161,38 @@ export class AccountsService {
     }
   }
 
-  /**
-   * Add balance to an account.
-   * @param id The id of the account to add balance.
-   * @param amount The amount to add to the account.
-   * @returns The account updated.
-   * @async
-   */
-  async addAccountBalance(id: string, amount: number): Promise<AccountDto> {
-    try {
-      const updatedAccount = await this.accountModel
-        .findOneAndUpdate(
-          { _id: id },
-          { $inc: { balance: amount } },
-          { new: true },
-        )
-        .exec();
-      if (!updatedAccount) {
-        throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
-      }
-      return plainToClass(AccountDto, updatedAccount.toObject());
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-      this.logger.error(
-        `Failed to add balance to account: ${error.message}`,
-        error.stack,
-      );
-      throw new HttpException(
-        'Error adding balance to the account',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
+  // /**
+  //  * Add balance to an account.
+  //  * @param id The id of the account to add balance.
+  //  * @param amount The amount to add to the account.
+  //  * @returns The account updated.
+  //  * @async
+  //  */
+  // async addAccountBalance(id: string, amount: number): Promise<AccountDto> {
+  //   try {
+  //     const updatedAccount = await this.accountModel
+  //       .findOneAndUpdate(
+  //         { _id: id },
+  //         { $inc: { balance: amount } },
+  //         { new: true },
+  //       )
+  //       .exec();
+  //     if (!updatedAccount) {
+  //       throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
+  //     }
+  //     return plainToClass(AccountDto, updatedAccount.toObject());
+  //   } catch (error) {
+  //     if (error instanceof HttpException) {
+  //       throw error;
+  //     }
+  //     this.logger.error(
+  //       `Failed to add balance to account: ${error.message}`,
+  //       error.stack,
+  //     );
+  //     throw new HttpException(
+  //       'Error adding balance to the account',
+  //       HttpStatus.INTERNAL_SERVER_ERROR,
+  //     );
+  //   }
+  // }
 }

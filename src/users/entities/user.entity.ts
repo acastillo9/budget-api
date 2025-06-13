@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import { BaseSchema } from 'src/core/schemas';
+import { AuditableSchema } from 'src/core/schemas';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -16,4 +16,5 @@ export class User {
   picture: string;
 }
 
-export const UserSchema = SchemaFactory.createForClass(User).add(BaseSchema);
+export const UserSchema =
+  SchemaFactory.createForClass(User).add(AuditableSchema);

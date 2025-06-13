@@ -53,14 +53,16 @@ export class UsersService {
     session?: ClientSession,
   ): Promise<UserDto> {
     try {
-      const user = await this.userModel.findById(id);
+      const updatedUser = await this.userModel.findByIdAndUpdate(
+        id,
+        updateUserDto,
+        { new: true, session },
+      );
 
-      if (!user) {
+      if (!updatedUser) {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
       }
 
-      user.set(updateUserDto);
-      const updatedUser = await user.save({ session });
       return plainToClass(UserDto, updatedUser.toObject());
     } catch (error) {
       this.logger.error(`Failed to update user: ${error.message}`, error.stack);

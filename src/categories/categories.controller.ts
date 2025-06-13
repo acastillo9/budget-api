@@ -56,7 +56,7 @@ export class CategoriesController {
     @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
   ): Promise<CategoryDto> {
-    return this.categoriesService.findOne(id, req.user.id);
+    return this.categoriesService.findById(id, req.user.id);
   }
 
   /**

@@ -55,7 +55,7 @@ export class CategoriesService {
    */
   async findAll(userId: string): Promise<CategoryDto[]> {
     try {
-      const categories = await this.categoryModel.find({ user: userId }).exec();
+      const categories = await this.categoryModel.find({ user: userId });
       return categories.map((category) =>
         plainToClass(CategoryDto, category.toObject()),
       );
@@ -78,19 +78,17 @@ export class CategoriesService {
    * @returns The category found.
    * @async
    */
-  async findOne(id: string, userId: string): Promise<CategoryDto> {
+  async findById(id: string, userId: string): Promise<CategoryDto> {
     try {
-      const category = await this.categoryModel
-        .findOne({ _id: id, user: userId })
-        .exec();
+      const category = await this.categoryModel.findOne({
+        _id: id,
+        user: userId,
+      });
       if (!category) {
         throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
       }
       return plainToClass(CategoryDto, category.toObject());
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
       this.logger.error(
         `Failed to find category: ${error.message}`,
         error.stack,
@@ -116,19 +114,18 @@ export class CategoriesService {
     userId: string,
   ): Promise<CategoryDto> {
     try {
-      const updatedCategory = await this.categoryModel
-        .findOneAndUpdate({ _id: id, user: userId }, updateCategoryDto, {
+      const updatedCategory = await this.categoryModel.findOneAndUpdate(
+        { _id: id, user: userId },
+        updateCategoryDto,
+        {
           new: true,
-        })
-        .exec();
+        },
+      );
       if (!updatedCategory) {
         throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
       }
       return plainToClass(CategoryDto, updatedCategory.toObject());
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
       this.logger.error(
         `Failed to update category: ${error.message}`,
         error.stack,
@@ -149,17 +146,15 @@ export class CategoriesService {
    */
   async remove(id: string, userId: string): Promise<CategoryDto> {
     try {
-      const deletedCategory = await this.categoryModel
-        .findOneAndDelete({ _id: id, user: userId })
-        .exec();
+      const deletedCategory = await this.categoryModel.findOneAndDelete({
+        _id: id,
+        user: userId,
+      });
       if (!deletedCategory) {
         throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
       }
       return plainToClass(CategoryDto, deletedCategory.toObject());
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
       this.logger.error(
         `Failed to remove category: ${error.message}`,
         error.stack,

@@ -6,6 +6,7 @@ export class AccountDto {
   name: string;
   balance: number;
   currencyCode: string;
+  accountType: string;
 
   @Type(() => UserDto)
   user: UserDto;

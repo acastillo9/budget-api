@@ -2,7 +2,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes } from 'mongoose';
 import { CurrencyCode } from './currency-code.enum';
 import { UserDocument } from 'src/users/entities/user.entity';
-import { BaseSchema } from 'src/core/schemas';
+import { AuditableSchema } from 'src/core/schemas';
+import { AccountType } from './account-type.enum';
 
 export type AccountDocument = HydratedDocument<Account>;
 
@@ -17,6 +18,9 @@ export class Account {
   @Prop({ type: String, enum: CurrencyCode, required: true })
   currencyCode: CurrencyCode;
 
+  @Prop({ type: String, enum: AccountType, required: true })
+  accountType: AccountType;
+
   @Prop({
     type: SchemaTypes.ObjectId,
     ref: 'User',
@@ -27,4 +31,4 @@ export class Account {
 }
 
 export const AccountSchema =
-  SchemaFactory.createForClass(Account).add(BaseSchema);
+  SchemaFactory.createForClass(Account).add(AuditableSchema);

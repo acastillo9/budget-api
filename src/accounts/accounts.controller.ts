@@ -30,7 +30,11 @@ export class AccountsController {
     @Request() req: AuthenticatedRequest,
     @Body() createAccountDto: CreateAccountDto,
   ): Promise<AccountDto> {
-    return this.accountsService.create(createAccountDto, req.user.id);
+    const newAccount = {
+      ...createAccountDto,
+      user: req.user.id,
+    };
+    return this.accountsService.create(newAccount);
   }
 
   /**
@@ -41,6 +45,7 @@ export class AccountsController {
    */
   @Get()
   findAll(@Request() req: AuthenticatedRequest): Promise<AccountDto[]> {
+    console.log(this.accountsService.findAll(req.user.id));
     return this.accountsService.findAll(req.user.id);
   }
 
@@ -56,7 +61,7 @@ export class AccountsController {
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,
   ): Promise<AccountDto> {
-    return this.accountsService.findOne(id, req.user.id);
+    return this.accountsService.findById(id, req.user.id);
   }
 
   /**
