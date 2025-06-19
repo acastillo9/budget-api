@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Account } from './entities/account.entity';
-import { Model } from 'mongoose';
+import { ClientSession, Model } from 'mongoose';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 import { AccountDto } from './dto/account.dto';
@@ -161,38 +161,40 @@ export class AccountsService {
     }
   }
 
-  // /**
-  //  * Add balance to an account.
-  //  * @param id The id of the account to add balance.
-  //  * @param amount The amount to add to the account.
-  //  * @returns The account updated.
-  //  * @async
-  //  */
-  // async addAccountBalance(id: string, amount: number): Promise<AccountDto> {
-  //   try {
-  //     const updatedAccount = await this.accountModel
-  //       .findOneAndUpdate(
-  //         { _id: id },
-  //         { $inc: { balance: amount } },
-  //         { new: true },
-  //       )
-  //       .exec();
-  //     if (!updatedAccount) {
-  //       throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
-  //     }
-  //     return plainToClass(AccountDto, updatedAccount.toObject());
-  //   } catch (error) {
-  //     if (error instanceof HttpException) {
-  //       throw error;
-  //     }
-  //     this.logger.error(
-  //       `Failed to add balance to account: ${error.message}`,
-  //       error.stack,
-  //     );
-  //     throw new HttpException(
-  //       'Error adding balance to the account',
-  //       HttpStatus.INTERNAL_SERVER_ERROR,
-  //     );
-  //   }
-  // }
+  /**
+   * Add balance to an account.
+   * @param id The id of the account to add balance.
+   * @param amount The amount to add to the account.
+   * @param session The MongoDB session to use for the transaction.
+   * @returns The account updated.
+   * @async
+   */
+  async addAccountBalance(
+    id: string,
+    amount: number,
+    session: ClientSession,
+  ): Promise<AccountDto> {
+    try {
+      const updatedAccount = await this.accountModel.findOneAndUpdate(
+        { _id: id },
+        { $inc: { balance: amount } },
+        { new: true, session },
+      );
+
+      if (!updatedAccount) {
+        throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
+      }
+
+      return plainToClass(AccountDto, updatedAccount.toObject());
+    } catch (error) {
+      this.logger.error(
+        `Failed to add balance to account: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error adding balance to the account',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

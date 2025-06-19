@@ -4,75 +4,171 @@ import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Transaction } from './entities/transaction.entity';
 import { Connection, Model } from 'mongoose';
-import { TransactionType } from './entities/transaction-type.enum';
 import { AccountsService } from 'src/accounts/accounts.service';
 import { TransactionDto } from './dto/transaction.dto';
 import { plainToClass } from 'class-transformer';
 import { TransactionsQueryDto } from './dto/transactions-query.dto';
+import { DbTransactionService } from 'src/core/db-transaction.service';
+import { CategoriesService } from 'src/categories/categories.service';
+import { CategoryType } from 'src/categories/entities/category-type.enum';
+import { CategoryDto } from 'src/categories/dto/category.dto';
+import { I18nService } from 'nestjs-i18n';
+import { CreateTransferDto } from './dto/create-transfer.dto';
 
 @Injectable()
 export class TransactionsService {
   private readonly logger: Logger = new Logger(TransactionsService.name);
 
   constructor(
-    @InjectModel(Transaction.name) private transactionModel: Model<Transaction>,
-    @InjectConnection() private readonly connection: Connection,
-    private accountsService: AccountsService,
+    private readonly dbTransactionService: DbTransactionService,
+    private readonly accountsService: AccountsService,
+    private readonly categoriesService: CategoriesService,
+    @InjectModel(Transaction.name)
+    private readonly transactionModel: Model<Transaction>,
+    private readonly i18n: I18nService,
   ) {}
 
-  // /**
-  //  * Create a new transaction.
-  //  * @param createTransactionDto The data to create the transaction.
-  //  * @param userId The id of the user to create the transaction.
-  //  * @returns The transaction created.
-  //  * @async
-  //  */
-  // async create(
-  //   createTransactionDto: CreateTransactionDto,
-  //   userId: string,
-  // ): Promise<TransactionDto> {
-  //   const newTransaction = {
-  //     ...createTransactionDto,
-  //     user: userId,
-  //     amount:
-  //       createTransactionDto.transactionType === TransactionType.EXPENSE
-  //         ? -createTransactionDto.amount
-  //         : createTransactionDto.amount,
-  //   };
-  //
-  //   const session = await this.connection.startSession();
-  //   session.startTransaction();
-  //   try {
-  //     // save the transaction
-  //     const savedTransaction = await new this.transactionModel(
-  //       newTransaction,
-  //     ).save();
-  //
-  //     // then add the amount to the account balance if the transaction is paid
-  //     if (savedTransaction.paid) {
-  //       const account = await this.accountsService.addAccountBalance(
-  //         savedTransaction.account.id,
-  //         savedTransaction.amount,
-  //       );
-  //       savedTransaction.account.balance = account.balance;
-  //     }
-  //
-  //     await session.commitTransaction();
-  //     return plainToClass(TransactionDto, savedTransaction.toObject());
-  //   } catch (error) {
-  //     await session.abortTransaction();
-  //     this.logger.error(
-  //       `Failed to create transaction: ${error.message}`,
-  //       error.stack,
-  //     );
-  //     throw new HttpException(
-  //       'Error creating the transaction',
-  //       HttpStatus.INTERNAL_SERVER_ERROR,
-  //     );
-  //   } finally {
-  //     await session.endSession();
-  //   }
-  // }
+  /**
+   * Create a new transaction.
+   * @param createTransactionDto The data to create the transaction.
+   * @returns The transaction created.
+   * @async
+   */
+  async create(
+    createTransactionDto: CreateTransactionDto,
+  ): Promise<TransactionDto> {
+    const category = await this.categoriesService.findById(
+      createTransactionDto.category,
+      createTransactionDto.user,
+    );
+
+    if (!category) {
+      throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
+    }
+
+    const newTransaction = {
+      ...createTransactionDto,
+      amount:
+        category.categoryType === CategoryType.EXPENSE
+          ? -createTransactionDto.amount
+          : createTransactionDto.amount,
+    };
+
+    try {
+      return this.dbTransactionService.runTransaction(async (session) => {
+        // create the transaction
+        const transactionModel = new this.transactionModel(newTransaction);
+        const savedTransaction = await transactionModel.save({ session });
+
+        // add the transaction amount to the account balance
+        await this.accountsService.addAccountBalance(
+          savedTransaction.account.id,
+          savedTransaction.amount,
+          session,
+        );
+
+        return plainToClass(TransactionDto, savedTransaction.toObject());
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to create transaction: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error creating the transaction',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Create a transfer transaction between two accounts.
+   * @param createTransferDto The data to create the transfer transaction.
+   * @returns The transfer transaction created.
+   * @async
+   */
+  async createTransfer(createTransferDto: CreateTransferDto) {
+    const originAccount = await this.accountsService.findById(
+      createTransferDto.originAccount,
+      createTransferDto.user,
+    );
+
+    if (!originAccount) {
+      throw new HttpException('Origin account not found', HttpStatus.NOT_FOUND);
+    }
+
+    const newTransfer = {
+      date: createTransferDto.date,
+      description: `${this.i18n.t('transactions.transferFromDescription', {
+        args: {
+          originAccount: originAccount.name,
+        },
+      })} (${createTransferDto.description})`,
+      notes: createTransferDto.notes,
+      account: createTransferDto.account,
+      user: createTransferDto.user,
+      amount: createTransferDto.amount,
+    };
+
+    try {
+      return this.dbTransactionService.runTransaction(async (session) => {
+        // create the income transaction for the destination account
+        const incomeTransactionModel = new this.transactionModel(newTransfer);
+        const savedIncomeTransaction = await incomeTransactionModel.save({
+          session,
+        });
+
+        // add the income transaction amount to the destination account balance
+        await this.accountsService.addAccountBalance(
+          savedIncomeTransaction.account.id,
+          savedIncomeTransaction.amount,
+          session,
+        );
+
+        // create the outcome transaction for the origin account
+        const outcomeTransaction = {
+          date: createTransferDto.date,
+          description: `${this.i18n.t('transactions.transferToDescription', {
+            args: { originAccount: savedIncomeTransaction.account.name },
+          })} (${createTransferDto.description})`,
+          notes: createTransferDto.notes,
+          account: createTransferDto.originAccount,
+          user: createTransferDto.user,
+          amount: -createTransferDto.amount,
+          transfer: savedIncomeTransaction.id,
+        };
+        const outcomeTransactionModel = new this.transactionModel(
+          outcomeTransaction,
+        );
+        const savedOutcomeTransaction = await outcomeTransactionModel.save({
+          session,
+        });
+
+        // add the outcome transaction amount to the origin account balance
+        await this.accountsService.addAccountBalance(
+          savedOutcomeTransaction.account.id,
+          savedOutcomeTransaction.amount,
+          session,
+        );
+
+        // update the transfer field of the income transaction
+        savedIncomeTransaction.transfer = savedOutcomeTransaction.id;
+        await savedIncomeTransaction.save({ session });
+
+        return plainToClass(TransactionDto, savedIncomeTransaction.toObject());
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to create transfer transaction: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error creating the transfer transaction',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   //
   // /**
   //  * Find all transactions of an user. The filter can be by account, month and year.

@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes } from 'mongoose';
 import { BaseSchema } from 'src/core/schemas';
 import { UserDocument } from 'src/users/entities/user.entity';
+import { CategoryType } from './category-type.enum';
 
 export type CategoryDocument = HydratedDocument<Category>;
 
@@ -12,6 +13,9 @@ export class Category {
 
   @Prop({ type: String, required: true })
   icon: string;
+
+  @Prop({ type: String, enum: CategoryType, required: true })
+  categoryType: CategoryType;
 
   @Prop({
     type: SchemaTypes.ObjectId,

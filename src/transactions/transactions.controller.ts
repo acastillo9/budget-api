@@ -14,26 +14,50 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { TransactionsQueryDto } from './dto/transactions-query.dto';
 import { AuthenticatedRequest } from 'src/core/types';
+import { CreateTransferDto } from './dto/create-transfer.dto';
 
 @Controller('transactions')
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
 
-  // /**
-  //  * Create a new transaction.
-  //  * @param req The request object.
-  //  * @param createTransactionDto The data to create the transaction.
-  //  * @returns The transaction created.
-  //  * @async
-  //  */
-  // @Post()
-  // create(
-  //   @Request() req: AuthenticatedRequest,
-  //   @Body() createTransactionDto: CreateTransactionDto,
-  // ) {
-  //   return this.transactionsService.create(createTransactionDto, req.user.id);
-  // }
-  //
+  /**
+   * Create a new transaction.
+   * @param req The request object.
+   * @param createTransactionDto The data to create the transaction.
+   * @returns The transaction created.
+   * @async
+   */
+  @Post()
+  create(
+    @Request() req: AuthenticatedRequest,
+    @Body() createTransactionDto: CreateTransactionDto,
+  ) {
+    const newTransaction = {
+      ...createTransactionDto,
+      user: req.user.id,
+    };
+    return this.transactionsService.create(newTransaction);
+  }
+
+  /**
+   * Create a new transfer transaction.
+   * @param req The request object.
+   * @param createTransferDto The data to create the transfer transaction.
+   * @returns The transfer transaction created.
+   * @async
+   */
+  @Post('transfer')
+  createTransfer(
+    @Request() req: AuthenticatedRequest,
+    @Body() createTransferDto: CreateTransferDto,
+  ) {
+    const newTransfer = {
+      ...createTransferDto,
+      user: req.user.id,
+    };
+    return this.transactionsService.createTransfer(newTransfer);
+  }
+
   // /**
   //  * Find all transactions of an user. Optionally filter by account, month and year.
   //  * @param req The request object.

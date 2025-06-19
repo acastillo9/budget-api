@@ -11,7 +11,7 @@ import {
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
-import CategoryDto from './dto/category.dto';
+import { CategoryDto } from './dto/category.dto';
 import { AuthenticatedRequest } from 'src/core/types';
 
 @Controller('categories')
@@ -30,7 +30,11 @@ export class CategoriesController {
     @Request() req: AuthenticatedRequest,
     @Body() createCategoryDto: CreateCategoryDto,
   ): Promise<CategoryDto> {
-    return this.categoriesService.create(createCategoryDto, req.user.id);
+    const newCategory = {
+      ...createCategoryDto,
+      user: req.user.id,
+    };
+    return this.categoriesService.create(newCategory);
   }
 
   /**

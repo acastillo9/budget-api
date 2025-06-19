@@ -4,7 +4,7 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Category } from './entities/category.entity';
 import { Model } from 'mongoose';
-import CategoryDto from './dto/category.dto';
+import { CategoryDto } from './dto/category.dto';
 import { plainToClass } from 'class-transformer';
 
 @Injectable()
@@ -17,22 +17,14 @@ export class CategoriesService {
 
   /**
    * Create a new category.
-   * @param createSourceDto The data to create the category.
+   * @param createCategoryDto The data to create the category.
    * @param userId The id of the user to create the category.
    * @returns The category created.
    * @async
    */
-  async create(
-    createSourceDto: CreateCategoryDto,
-    userId: string,
-  ): Promise<CategoryDto> {
-    const newCategory = {
-      ...createSourceDto,
-      user: userId,
-    };
-
+  async create(createCategoryDto: CreateCategoryDto): Promise<CategoryDto> {
     try {
-      const categoryModel = new this.categoryModel(newCategory);
+      const categoryModel = new this.categoryModel(createCategoryDto);
       const savedCategory = await categoryModel.save();
       return plainToClass(CategoryDto, savedCategory.toObject());
     } catch (error) {

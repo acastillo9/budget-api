@@ -1,0 +1,4 @@
+{
+  "transferFromDescription": "Transfer from ${from}",
+  "transferToDescription": "Transfer to ${to}"
+}

@@ -1,14 +1,14 @@
-import {
-  IsDate,
-  IsMongoId,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-} from 'class-validator';
 import { Type } from 'class-transformer';
+import {
+  IsNumber,
+  IsDate,
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsMongoId,
+} from 'class-validator';
 
-export class CreateTransactionDto {
+export class CreateTransferDto {
   @IsNumber()
   amount: number;
 
@@ -25,10 +25,10 @@ export class CreateTransactionDto {
   notes: string;
 
   @IsMongoId()
-  category: string;
+  account: string;
 
   @IsMongoId()
-  account: string;
+  originAccount: string;
 
   user: string;
 }

@@ -6,12 +6,14 @@ import { Transaction, TransactionSchema } from './entities/transaction.entity';
 import { AccountsModule } from 'src/accounts/accounts.module';
 import { CategoriesModule } from 'src/categories/categories.module';
 import { UsersModule } from 'src/users/users.module';
+import { CoreModule } from 'src/core/core.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Transaction.name, schema: TransactionSchema },
     ]),
+    CoreModule,
     AccountsModule,
     CategoriesModule,
     UsersModule,
