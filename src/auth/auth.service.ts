@@ -471,6 +471,7 @@ export class AuthService {
 
     // generate the tokens to login the user
     const tokens = await this.getTokens(
+      emailAuthenticationProvider.id,
       emailAuthenticationProvider.user.id,
       emailAuthenticationProvider.user.name,
     );
@@ -526,6 +527,7 @@ export class AuthService {
     }
 
     const tokens = await this.getTokens(
+      authenticationProvider.id,
       authenticationProvider.user.id,
       authenticationProvider.user.name,
       rememberMe,
@@ -585,6 +587,7 @@ export class AuthService {
     }
 
     const tokens = await this.getTokens(
+      authenticationProvider.id,
       authenticationProvider.user.id,
       authenticationProvider.user.name,
       isLongLived,
@@ -974,6 +977,7 @@ export class AuthService {
    * @async
    */
   private async getTokens(
+    authId: string,
     userId: string,
     name: string,
     isLongLived: boolean = false,
@@ -991,7 +995,7 @@ export class AuthService {
       ),
       this.jwtService.signAsync(
         {
-          sub: userId,
+          sub: authId,
           isLongLived,
         },
         {
