@@ -5,12 +5,10 @@ import { UserDto } from 'src/users/dto/user.dto';
 
 export class TransactionDto {
   id: string;
+  date: Date;
   amount: number;
-  startDate: Date;
-  endDate: Date;
-  repeatType: string;
   description: string;
-  paid: boolean;
+  notes: string;
   createdAt: Date;
   updatedAt: Date;
   isTransfer: boolean;

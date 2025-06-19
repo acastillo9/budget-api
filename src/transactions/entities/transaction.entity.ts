@@ -48,7 +48,7 @@ export class Transaction {
   @Prop({
     type: SchemaTypes.ObjectId,
     ref: 'Transaction',
-    autopopulate: true,
+    autopopulate: { maxDepth: 1 },
   })
   transfer: TransactionDocument;
 

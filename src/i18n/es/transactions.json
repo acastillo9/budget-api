@@ -1,4 +1,4 @@
 {
-  "transferFromDescription": "Transferencia desde ${from}",
-  "transferToDescription": "Transferencia a ${to}"
+  "transferFromDescription": "Transferencia desde {from}",
+  "transferToDescription": "Transferencia a {to}"
 }

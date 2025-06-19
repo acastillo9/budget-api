@@ -101,7 +101,7 @@ export class TransactionsService {
       date: createTransferDto.date,
       description: `${this.i18n.t('transactions.transferFromDescription', {
         args: {
-          originAccount: originAccount.name,
+          from: originAccount.name,
         },
       })} (${createTransferDto.description})`,
       notes: createTransferDto.notes,
@@ -129,13 +129,14 @@ export class TransactionsService {
         const outcomeTransaction = {
           date: createTransferDto.date,
           description: `${this.i18n.t('transactions.transferToDescription', {
-            args: { originAccount: savedIncomeTransaction.account.name },
+            args: { to: savedIncomeTransaction.account.name },
           })} (${createTransferDto.description})`,
           notes: createTransferDto.notes,
           account: createTransferDto.originAccount,
           user: createTransferDto.user,
           amount: -createTransferDto.amount,
           transfer: savedIncomeTransaction.id,
+          isTransfer: true,
         };
         const outcomeTransactionModel = new this.transactionModel(
           outcomeTransaction,
@@ -153,6 +154,7 @@ export class TransactionsService {
 
         // update the transfer field of the income transaction
         savedIncomeTransaction.transfer = savedOutcomeTransaction.id;
+        savedIncomeTransaction.isTransfer = true;
         await savedIncomeTransaction.save({ session });
 
         return plainToClass(TransactionDto, savedIncomeTransaction.toObject());
@@ -164,6 +166,24 @@ export class TransactionsService {
       );
       throw new HttpException(
         'Error creating the transfer transaction',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async findAll(userId: string) {
+    try {
+      const transactions = await this.transactionModel.find({ user: userId });
+      return transactions.map((transaction) =>
+        plainToClass(TransactionDto, transaction.toObject()),
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to find transactions for user ${userId}: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error finding the transactions',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

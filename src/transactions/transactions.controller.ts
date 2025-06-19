@@ -58,6 +58,11 @@ export class TransactionsController {
     return this.transactionsService.createTransfer(newTransfer);
   }
 
+  @Get()
+  findAll(@Request() req: AuthenticatedRequest) {
+    return this.transactionsService.findAll(req.user.id);
+  }
+
   // /**
   //  * Find all transactions of an user. Optionally filter by account, month and year.
   //  * @param req The request object.
