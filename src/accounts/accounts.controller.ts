@@ -45,7 +45,6 @@ export class AccountsController {
    */
   @Get()
   findAll(@Request() req: AuthenticatedRequest): Promise<AccountDto[]> {
-    console.log(this.accountsService.findAll(req.user.id));
     return this.accountsService.findAll(req.user.id);
   }
 
