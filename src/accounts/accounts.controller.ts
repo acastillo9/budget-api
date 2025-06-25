@@ -32,7 +32,7 @@ export class AccountsController {
   ): Promise<AccountDto> {
     const newAccount = {
       ...createAccountDto,
-      user: req.user.id,
+      user: req.user.userId,
     };
     return this.accountsService.create(newAccount);
   }
@@ -45,7 +45,7 @@ export class AccountsController {
    */
   @Get()
   findAll(@Request() req: AuthenticatedRequest): Promise<AccountDto[]> {
-    return this.accountsService.findAll(req.user.id);
+    return this.accountsService.findAll(req.user.userId);
   }
 
   /**
@@ -60,7 +60,7 @@ export class AccountsController {
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,
   ): Promise<AccountDto> {
-    return this.accountsService.findById(id, req.user.id);
+    return this.accountsService.findById(id, req.user.userId);
   }
 
   /**
@@ -77,7 +77,7 @@ export class AccountsController {
     @Request() req: AuthenticatedRequest,
     @Body() updateAccountDto: UpdateAccountDto,
   ): Promise<AccountDto> {
-    return this.accountsService.update(id, updateAccountDto, req.user.id);
+    return this.accountsService.update(id, updateAccountDto, req.user.userId);
   }
 
   /**
@@ -92,6 +92,6 @@ export class AccountsController {
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,
   ): Promise<AccountDto> {
-    return this.accountsService.remove(id, req.user.id);
+    return this.accountsService.remove(id, req.user.userId);
   }
 }

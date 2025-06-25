@@ -13,7 +13,7 @@ import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { LocalAuthGuard } from './local-auth.guard';
 import { RegisterDto } from './dto/register.dto';
-import { AuthenticatedRequest, Session } from 'src/core/types';
+import { AuthenticatedRequest } from 'src/core/types';
 import { GoogleAuthenticatedRequest, Credentials } from './types';
 import { EmailRegisteredDto } from './dto/email-registered.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -127,10 +127,12 @@ export class AuthController {
    * @async
    */
   @Get('me')
-  me(@Req() req: AuthenticatedRequest): Session {
+  me(@Req() req: AuthenticatedRequest) {
     return {
-      id: req.user.id,
+      id: req.user.userId,
       name: req.user.name,
+      email: req.user.email,
+      picture: req.user.picture,
     };
   }
 
@@ -142,7 +144,7 @@ export class AuthController {
    */
   @Post('logout')
   logout(@Req() req: AuthenticatedRequest) {
-    this.authService.logout(req.user.id);
+    this.authService.logout(req.user.authId);
   }
 
   /**
@@ -155,7 +157,7 @@ export class AuthController {
   @Get('refresh')
   @UseGuards(JwtRefreshGuard)
   refreshTokens(@Req() req: AuthenticatedRequest) {
-    const authId = req.user.id;
+    const authId = req.user.authId;
     const refreshToken = req.user.refreshToken;
     const isLongLived = req.user.isLongLived;
     return this.authService.refreshTokens(authId, refreshToken, isLongLived);

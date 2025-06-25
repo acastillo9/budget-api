@@ -32,7 +32,7 @@ export class CategoriesController {
   ): Promise<CategoryDto> {
     const newCategory = {
       ...createCategoryDto,
-      user: req.user.id,
+      user: req.user.userId,
     };
     return this.categoriesService.create(newCategory);
   }
@@ -45,7 +45,7 @@ export class CategoriesController {
    */
   @Get()
   findAll(@Request() req: AuthenticatedRequest): Promise<CategoryDto[]> {
-    return this.categoriesService.findAll(req.user.id);
+    return this.categoriesService.findAll(req.user.userId);
   }
 
   /**
@@ -60,7 +60,7 @@ export class CategoriesController {
     @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
   ): Promise<CategoryDto> {
-    return this.categoriesService.findById(id, req.user.id);
+    return this.categoriesService.findById(id, req.user.userId);
   }
 
   /**
@@ -77,7 +77,11 @@ export class CategoriesController {
     @Param('id') id: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
   ): Promise<CategoryDto> {
-    return this.categoriesService.update(id, updateCategoryDto, req.user.id);
+    return this.categoriesService.update(
+      id,
+      updateCategoryDto,
+      req.user.userId,
+    );
   }
 
   /**
@@ -92,6 +96,6 @@ export class CategoriesController {
     @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
   ): Promise<CategoryDto> {
-    return this.categoriesService.remove(id, req.user.id);
+    return this.categoriesService.remove(id, req.user.userId);
   }
 }

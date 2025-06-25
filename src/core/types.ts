@@ -1,8 +1,11 @@
 import { Request } from 'express';
 
 export interface Session {
-  id: string;
+  authId: string;
+  userId: string;
   name?: string;
+  email?: string;
+  picture?: string;
   refreshToken?: string;
   isLongLived?: boolean;
 }

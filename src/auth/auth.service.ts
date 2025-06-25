@@ -474,6 +474,8 @@ export class AuthService {
       emailAuthenticationProvider.id,
       emailAuthenticationProvider.user.id,
       emailAuthenticationProvider.user.name,
+      emailAuthenticationProvider.user.email,
+      emailAuthenticationProvider.user.picture,
     );
 
     const hashedPassword = await hash(password, Number(PASSWORD_BYCRYPT_SALT));
@@ -530,6 +532,8 @@ export class AuthService {
       authenticationProvider.id,
       authenticationProvider.user.id,
       authenticationProvider.user.name,
+      authenticationProvider.user.email,
+      authenticationProvider.user.picture,
       rememberMe,
     );
 
@@ -590,6 +594,8 @@ export class AuthService {
       authenticationProvider.id,
       authenticationProvider.user.id,
       authenticationProvider.user.name,
+      authenticationProvider.user.email,
+      authenticationProvider.user.picture,
       isLongLived,
     );
     const hashedRefreshToken = await hash(
@@ -980,13 +986,18 @@ export class AuthService {
     authId: string,
     userId: string,
     name: string,
+    email: string,
+    picture: string,
     isLongLived: boolean = false,
   ) {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
         {
-          sub: userId,
+          sub: authId,
+          userId,
           name,
+          email,
+          picture,
         },
         {
           secret: this.configService.getOrThrow(JWT_SECRET),

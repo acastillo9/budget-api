@@ -34,7 +34,7 @@ export class TransactionsController {
   ) {
     const newTransaction = {
       ...createTransactionDto,
-      user: req.user.id,
+      user: req.user.userId,
     };
     return this.transactionsService.create(newTransaction);
   }
@@ -53,14 +53,14 @@ export class TransactionsController {
   ) {
     const newTransfer = {
       ...createTransferDto,
-      user: req.user.id,
+      user: req.user.userId,
     };
     return this.transactionsService.createTransfer(newTransfer);
   }
 
   @Get()
   findAll(@Request() req: AuthenticatedRequest) {
-    return this.transactionsService.findAll(req.user.id);
+    return this.transactionsService.findAll(req.user.userId);
   }
 
   // /**
