@@ -1,9 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes } from 'mongoose';
-import { CurrencyCode } from './currency-code.enum';
 import { UserDocument } from 'src/users/entities/user.entity';
-import { AuditableSchema } from 'src/core/schemas';
+import { AuditableSchema } from 'src/shared/schemas';
 import { AccountType } from './account-type.enum';
+import { CurrencyCode } from 'src/shared/entities/currency-code.enum';
 
 export type AccountDocument = HydratedDocument<Account>;
 

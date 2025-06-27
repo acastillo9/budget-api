@@ -1,6 +1,6 @@
 import { IsEnum, IsNotEmpty, IsNumber, IsString } from 'class-validator';
-import { CurrencyCode } from '../entities/currency-code.enum';
 import { AccountType } from '../entities/account-type.enum';
+import { CurrencyCode } from 'src/shared/entities/currency-code.enum';
 
 export class CreateAccountDto {
   @IsNotEmpty()
@@ -8,13 +8,13 @@ export class CreateAccountDto {
   name: string;
 
   @IsEnum(CurrencyCode)
-  currencyCode: string;
+  currencyCode: CurrencyCode;
 
   @IsNumber()
   balance: number;
 
   @IsEnum(AccountType)
-  accountType: string;
+  accountType: AccountType;
 
   user?: string;
 }

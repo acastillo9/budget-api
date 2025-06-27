@@ -4,6 +4,7 @@ export interface JwtPayload {
   name: string;
   email: string;
   picture: string;
+  currencyCode: string;
 }
 
 export interface Credentials {
@@ -19,5 +20,6 @@ export interface GoogleAuthenticatedRequest extends Request {
     picture: string;
     accessToken: string;
     refreshToken: string;
+    locale: string;
   };
 }

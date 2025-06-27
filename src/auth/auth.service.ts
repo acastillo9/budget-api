@@ -39,10 +39,11 @@ import { AuthenticationProviderType } from './entities/authentication-provider-t
 import { AuthenticationProviderDto } from './dto/authentication-provider.dto';
 import { plainToClass } from 'class-transformer';
 import { CreateAuthenticationProviderDto } from './dto/create-authentication-provider.dto';
-import { DbTransactionService } from 'src/core/db-transaction.service';
+import { DbTransactionService } from 'src/shared/db-transaction.service';
 import { AuthenticationProviderStatus } from './entities/authentication-provider-status.enum';
 import { UpdateAuthenticationProviderDto } from './dto/update-authentication-provider.dto';
 import { I18nService } from 'nestjs-i18n';
+import { CurrencyCode } from 'src/shared/entities/currency-code.enum';
 
 @Injectable()
 export class AuthService {
@@ -119,6 +120,7 @@ export class AuthService {
           const createUserDto: CreateUserDto = {
             name: registerDto.name,
             email: registerDto.email,
+            currencyCode: this.getCurrencyCodeFromLocale(registerDto.locale),
           };
           const newUser = await this.usersService.create(
             createUserDto,
@@ -476,6 +478,7 @@ export class AuthService {
       emailAuthenticationProvider.user.name,
       emailAuthenticationProvider.user.email,
       emailAuthenticationProvider.user.picture,
+      emailAuthenticationProvider.user.currencyCode,
     );
 
     const hashedPassword = await hash(password, Number(PASSWORD_BYCRYPT_SALT));
@@ -534,6 +537,7 @@ export class AuthService {
       authenticationProvider.user.name,
       authenticationProvider.user.email,
       authenticationProvider.user.picture,
+      authenticationProvider.user.currencyCode,
       rememberMe,
     );
 
@@ -596,6 +600,7 @@ export class AuthService {
       authenticationProvider.user.name,
       authenticationProvider.user.email,
       authenticationProvider.user.picture,
+      authenticationProvider.user.currencyCode,
       isLongLived,
     );
     const hashedRefreshToken = await hash(
@@ -770,6 +775,7 @@ export class AuthService {
                 name: req.user.displayName,
                 email: req.user.email,
                 picture: req.user.picture,
+                currencyCode: this.getCurrencyCodeFromLocale(req.user.locale),
               };
               user = await this.usersService.create(createUserDto, session);
             }
@@ -808,6 +814,21 @@ export class AuthService {
       googleAuthenticationProvider.providerUserId,
       true, // remember me is true for google login
     );
+  }
+
+  /**
+   * get the currency code from the locale.
+   * @param locale The locale to get the currency code from.
+   * @return The currency code.
+   * @private
+   */
+  private getCurrencyCodeFromLocale(locale: string): CurrencyCode {
+    const currencyByLocale: Record<string, CurrencyCode> = {
+      'en-US': CurrencyCode.USD,
+      'es-CO': CurrencyCode.COP,
+    };
+
+    return currencyByLocale[locale] || CurrencyCode.USD; // Default to USD if no currency code is found
   }
 
   /**
@@ -988,6 +1009,7 @@ export class AuthService {
     name: string,
     email: string,
     picture: string,
+    currencyCode: CurrencyCode,
     isLongLived: boolean = false,
   ) {
     const [accessToken, refreshToken] = await Promise.all([
@@ -998,6 +1020,7 @@ export class AuthService {
           name,
           email,
           picture,
+          currencyCode,
         },
         {
           secret: this.configService.getOrThrow(JWT_SECRET),

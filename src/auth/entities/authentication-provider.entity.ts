@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes } from 'mongoose';
 import { AuthenticationProviderType } from './authentication-provider-type.enum';
 import { UserDocument } from 'src/users/entities/user.entity';
-import { BaseSchema } from 'src/core/schemas';
+import { BaseSchema } from 'src/shared/schemas';
 import { AuthenticationProviderStatus } from './authentication-provider-status.enum';
 
 export type AuthenticationProviderDocument =

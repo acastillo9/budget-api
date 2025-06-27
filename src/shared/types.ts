@@ -6,6 +6,7 @@ export interface Session {
   name?: string;
   email?: string;
   picture?: string;
+  currencyCode?: string;
   refreshToken?: string;
   isLongLived?: boolean;
 }

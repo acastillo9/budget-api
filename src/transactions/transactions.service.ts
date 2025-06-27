@@ -8,7 +8,7 @@ import { AccountsService } from 'src/accounts/accounts.service';
 import { TransactionDto } from './dto/transaction.dto';
 import { plainToClass } from 'class-transformer';
 import { TransactionsQueryDto } from './dto/transactions-query.dto';
-import { DbTransactionService } from 'src/core/db-transaction.service';
+import { DbTransactionService } from 'src/shared/db-transaction.service';
 import { CategoriesService } from 'src/categories/categories.service';
 import { CategoryType } from 'src/categories/entities/category-type.enum';
 import { CategoryDto } from 'src/categories/dto/category.dto';

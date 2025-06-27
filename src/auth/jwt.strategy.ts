@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JWT_SECRET } from './constants';
 import { JwtPayload } from './types';
-import { Session } from 'src/core/types';
+import { Session } from 'src/shared/types';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -23,6 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       name: payload.name,
       email: payload.email,
       picture: payload.picture,
+      currencyCode: payload.currencyCode,
     };
   }
 }

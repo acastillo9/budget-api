@@ -15,12 +15,12 @@ import {
   AuthenticationProvider,
   AuthenticationProviderSchema,
 } from './entities/authentication-provider.entity';
-import { CoreModule } from 'src/core/core.module';
+import { SharedModule } from 'src/shared/shared.module';
 import { JwtRefreshStrategy } from './jwt-refresh.strategy';
 
 @Module({
   imports: [
-    CoreModule,
+    SharedModule,
     UsersModule,
     PassportModule,
     JwtModule.register({}),

@@ -3,7 +3,7 @@ import { HydratedDocument, SchemaTypes } from 'mongoose';
 import { CategoryDocument } from 'src/categories/entities/category.entity';
 import { AccountDocument } from 'src/accounts/entities/account.entity';
 import { UserDocument } from 'src/users/entities/user.entity';
-import { AuditableSchema } from 'src/core/schemas';
+import { AuditableSchema } from 'src/shared/schemas';
 
 export type TransactionDocument = HydratedDocument<Transaction>;
 

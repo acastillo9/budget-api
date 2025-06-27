@@ -7,4 +7,6 @@ export class RegisterDto {
 
   @IsEmail()
   email: string;
+
+  locale?: string;
 }

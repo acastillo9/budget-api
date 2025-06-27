@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   Post,
   Query,
@@ -13,7 +14,7 @@ import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { LocalAuthGuard } from './local-auth.guard';
 import { RegisterDto } from './dto/register.dto';
-import { AuthenticatedRequest } from 'src/core/types';
+import { AuthenticatedRequest } from 'src/shared/types';
 import { GoogleAuthenticatedRequest, Credentials } from './types';
 import { EmailRegisteredDto } from './dto/email-registered.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -57,7 +58,13 @@ export class AuthController {
    */
   @Public()
   @Post('register')
-  register(@Body() registerDto: RegisterDto): Promise<RegisterResponseDto> {
+  register(
+    @Body() registerDto: RegisterDto,
+    @Headers('Accept-Language') acceptLanguage: string,
+  ): Promise<RegisterResponseDto> {
+    registerDto.locale = acceptLanguage
+      ? acceptLanguage.split(',')[0]
+      : 'en-US';
     return this.authService.registerByEmail(registerDto);
   }
 
@@ -133,6 +140,7 @@ export class AuthController {
       name: req.user.name,
       email: req.user.email,
       picture: req.user.picture,
+      currencyCode: req.user.currencyCode,
     };
   }
 
@@ -208,7 +216,12 @@ export class AuthController {
   async googleAuthRedirect(
     @Req() req: GoogleAuthenticatedRequest,
     @Res() res: Response,
+    @Headers('Accept-Language') acceptLanguage: string,
   ) {
+    if (!req.user.locale) {
+      // If locale is not set, use the Accept-Language header
+      req.user.locale = acceptLanguage ? acceptLanguage.split(',')[0] : 'en-US';
+    }
     const session: Credentials = await this.authService.googleLogin(req);
     return res.redirect(
       301,

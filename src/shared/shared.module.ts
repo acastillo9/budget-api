@@ -5,4 +5,4 @@ import { DbTransactionService } from './db-transaction.service';
   providers: [DbTransactionService],
   exports: [DbTransactionService],
 })
-export class CoreModule {}
+export class SharedModule {}

@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import { AuditableSchema } from 'src/core/schemas';
+import { CurrencyCode } from 'src/shared/entities/currency-code.enum';
+import { AuditableSchema } from 'src/shared/schemas';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -14,6 +15,9 @@ export class User {
 
   @Prop({ type: String })
   picture: string;
+
+  @Prop({ type: String, enum: CurrencyCode, required: true })
+  currencyCode: CurrencyCode;
 }
 
 export const UserSchema =

@@ -13,7 +13,7 @@ import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { TransactionsQueryDto } from './dto/transactions-query.dto';
-import { AuthenticatedRequest } from 'src/core/types';
+import { AuthenticatedRequest } from 'src/shared/types';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 
 @Controller('transactions')
