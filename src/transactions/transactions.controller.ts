@@ -15,6 +15,7 @@ import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { TransactionsQueryDto } from './dto/transactions-query.dto';
 import { AuthenticatedRequest } from 'src/shared/types';
 import { CreateTransferDto } from './dto/create-transfer.dto';
+import { PaginationDto } from 'src/shared/dto/pagination.dto';
 
 @Controller('transactions')
 export class TransactionsController {
@@ -58,9 +59,19 @@ export class TransactionsController {
     return this.transactionsService.createTransfer(newTransfer);
   }
 
+  /**
+   * Find all transactions of an user with pagination.
+   * @param req The request object.
+   * @param paginationDto The pagination parameters.
+   * @returns The transactions found.
+   * @async
+   */
   @Get()
-  findAll(@Request() req: AuthenticatedRequest) {
-    return this.transactionsService.findAll(req.user.userId);
+  findAll(
+    @Request() req: AuthenticatedRequest,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    return this.transactionsService.findAll(req.user.userId, paginationDto);
   }
 
   // /**

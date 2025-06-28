@@ -14,6 +14,8 @@ import { CategoryType } from 'src/categories/entities/category-type.enum';
 import { CategoryDto } from 'src/categories/dto/category.dto';
 import { I18nService } from 'nestjs-i18n';
 import { CreateTransferDto } from './dto/create-transfer.dto';
+import { PaginationDto } from 'src/shared/dto/pagination.dto';
+import { PaginatedDataDto } from 'src/shared/dto/paginated-data.dto';
 
 @Injectable()
 export class TransactionsService {
@@ -171,12 +173,38 @@ export class TransactionsService {
     }
   }
 
-  async findAll(userId: string) {
+  /**
+   * Find all transactions of a user with pagination.
+   * @param userId The id of the user to find the transactions.
+   * @param paginationDto The pagination parameters.
+   * @returns The transactions found.
+   * @async
+   */
+  async findAll(
+    userId: string,
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedDataDto<TransactionDto>> {
+    const filter = { user: userId };
+    const skip = paginationDto.offset || 0;
+    const limit = paginationDto.limit || 10; // Default limit to 10 if not provided
+    const sort = { createdAt: -1 }; // Sort by date descending
+
     try {
-      const transactions = await this.transactionModel.find({ user: userId });
-      return transactions.map((transaction) =>
-        plainToClass(TransactionDto, transaction.toObject()),
-      );
+      const transactions = await this.transactionModel.find(filter, null, {
+        skip,
+        limit,
+        sort,
+      });
+      const total = await this.transactionModel.countDocuments(filter);
+      return {
+        data: transactions.map((transaction) =>
+          plainToClass(TransactionDto, transaction.toObject()),
+        ),
+        total,
+        limit,
+        offset: skip,
+        nextPage: skip + limit < total ? skip + limit : null,
+      };
     } catch (error) {
       this.logger.error(
         `Failed to find transactions for user ${userId}: ${error.message}`,
