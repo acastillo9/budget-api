@@ -16,6 +16,7 @@ import { I18nService } from 'nestjs-i18n';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { PaginationDto } from 'src/shared/dto/pagination.dto';
 import { PaginatedDataDto } from 'src/shared/dto/paginated-data.dto';
+import { UpdateTransferDto } from './dto/update-transfer.dto';
 
 @Injectable()
 export class TransactionsService {
@@ -43,10 +44,6 @@ export class TransactionsService {
       createTransactionDto.category,
       createTransactionDto.user,
     );
-
-    if (!category) {
-      throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
-    }
 
     const newTransaction = {
       ...createTransactionDto,
@@ -101,11 +98,7 @@ export class TransactionsService {
 
     const newTransfer = {
       date: createTransferDto.date,
-      description: `${this.i18n.t('transactions.transferFromDescription', {
-        args: {
-          from: originAccount.name,
-        },
-      })} (${createTransferDto.description})`,
+      description: createTransferDto.description,
       notes: createTransferDto.notes,
       account: createTransferDto.account,
       user: createTransferDto.user,
@@ -130,9 +123,7 @@ export class TransactionsService {
         // create the outcome transaction for the origin account
         const outcomeTransaction = {
           date: createTransferDto.date,
-          description: `${this.i18n.t('transactions.transferToDescription', {
-            args: { to: savedIncomeTransaction.account.name },
-          })} (${createTransferDto.description})`,
+          description: createTransferDto.description,
           notes: createTransferDto.notes,
           account: createTransferDto.originAccount,
           user: createTransferDto.user,
@@ -212,6 +203,362 @@ export class TransactionsService {
       );
       throw new HttpException(
         'Error finding the transactions',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * update a transaction by id.
+   * @param id The id of the transaction to update.
+   * @param updateTransactionDto The data to update the transaction.
+   * @param userId The id of the user to update the transaction.
+   * @return The transaction updated.
+   * @async
+   */
+  async update(
+    id: string,
+    updateTransactionDto: UpdateTransactionDto,
+    userId: string,
+  ): Promise<TransactionDto> {
+    const oldTransaction = await this.findOne(id, userId);
+
+    const dataToUpdate: UpdateTransactionDto = {
+      ...updateTransactionDto,
+    };
+
+    // if the category is changed, we need to find the new category
+    if (
+      updateTransactionDto.category &&
+      updateTransactionDto.category !== oldTransaction.category.id
+    ) {
+      const category = await this.categoriesService.findById(
+        updateTransactionDto.category,
+        userId,
+      );
+      dataToUpdate.category = category.id;
+      // if the category type is changed, we need to update the amount in case of expense
+      if (category.categoryType !== oldTransaction.category.categoryType) {
+        // if the updateTrabsactionDto.amount is defined we need to update the amount
+        if (
+          updateTransactionDto.amount !== undefined &&
+          updateTransactionDto.amount !== oldTransaction.amount
+        ) {
+          dataToUpdate.amount =
+            category.categoryType === CategoryType.EXPENSE
+              ? -updateTransactionDto.amount
+              : updateTransactionDto.amount;
+        } else {
+          // if the amount is not defined, we need to keep the old amount but
+          // change the sign if the category type is changed
+          dataToUpdate.amount = -oldTransaction.amount;
+        }
+      }
+    } else if (
+      updateTransactionDto.amount !== undefined &&
+      updateTransactionDto.amount !== oldTransaction.amount
+    ) {
+      // if the category is not changed but the amount is defined, we need to update the amount
+      dataToUpdate.amount =
+        oldTransaction.category.categoryType === CategoryType.EXPENSE
+          ? -updateTransactionDto.amount
+          : updateTransactionDto.amount;
+    }
+
+    return this.dbTransactionService.runTransaction(async (session) => {
+      // if the account was changed, remove the old transaction amount from the old account balance
+      if (
+        updateTransactionDto.account &&
+        updateTransactionDto.account !== oldTransaction.account.id
+      ) {
+        await this.accountsService.addAccountBalance(
+          oldTransaction.account.id,
+          -oldTransaction.amount,
+          session,
+        );
+
+        if (dataToUpdate.amount !== undefined) {
+          // add the new transaction amount to the new account balance
+          await this.accountsService.addAccountBalance(
+            updateTransactionDto.account,
+            dataToUpdate.amount,
+            session,
+          );
+        } else {
+          // add the old transaction amount to the new account balance
+          await this.accountsService.addAccountBalance(
+            updateTransactionDto.account,
+            oldTransaction.amount,
+            session,
+          );
+        }
+      } else if (dataToUpdate.amount !== undefined) {
+        // calculate the amount difference to update the account balance
+        const amountDiff = dataToUpdate.amount - oldTransaction.amount;
+        if (amountDiff !== 0) {
+          // add the amount diff to the account balance
+          await this.accountsService.addAccountBalance(
+            oldTransaction.account.id,
+            amountDiff,
+            session,
+          );
+        }
+      }
+
+      const updatedTransaction = await this.transactionModel.findOneAndUpdate(
+        { _id: id, user: userId },
+        dataToUpdate,
+        { new: true, session },
+      );
+
+      return plainToClass(TransactionDto, updatedTransaction.toObject());
+    });
+  }
+
+  /**
+   * Update a transfer transaction by id.
+   * @param id The id of the transfer transaction to update.
+   * @param updateTransferDto The data to update the transfer transaction.
+   * @param userId The id of the user to update the transfer transaction.
+   * @return The transfer transaction updated.
+   * @async
+   */
+  async updateTransfer(
+    id: string,
+    updateTransferDto: UpdateTransferDto,
+    userId: string,
+  ): Promise<TransactionDto> {
+    // {
+    //   id: '687423041e7fb2a5a7db79e6',
+    //   amount: 2000000,
+    //   date: '2025-07-13',
+    //   description: 'pago TC',
+    //   notes: undefined,
+    //   originAccount: '685ed4eb9a2a9117ab863058',
+    //   account: '685ed4f89a2a9117ab86305f'
+    // }
+
+    const transactionToUpdate = await this.findOne(id, userId);
+    if (!transactionToUpdate.isTransfer) {
+      throw new HttpException(
+        'Transaction is not a transfer',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const siblingTransaction = transactionToUpdate.transfer;
+
+    const originTransaction =
+      transactionToUpdate.amount < 0 ? transactionToUpdate : siblingTransaction;
+    const targetTransaction =
+      transactionToUpdate.amount > 0 ? transactionToUpdate : siblingTransaction;
+
+    const originTransactionPayload: UpdateTransactionDto = {};
+    const targetTransactionPayload: UpdateTransactionDto = {};
+
+    // Handle amount update
+    const isAmountUpdate =
+      updateTransferDto.amount !== undefined &&
+      updateTransferDto.amount !== Math.abs(originTransaction.amount);
+
+    if (isAmountUpdate) {
+      originTransactionPayload.amount = -updateTransferDto.amount;
+      targetTransactionPayload.amount = updateTransferDto.amount;
+    }
+
+    // Handle origin account change
+    if (
+      updateTransferDto.originAccount &&
+      updateTransferDto.originAccount !== originTransaction.account.id
+    ) {
+      // throw an error if the new origin and target accounts are the same
+      if (
+        updateTransferDto.originAccount ===
+        (updateTransferDto.account || targetTransaction.account.id)
+      ) {
+        throw new HttpException(
+          'Origin and target accounts cannot be the same.',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      const account = await this.accountsService.findById(
+        updateTransferDto.originAccount,
+        userId,
+      ); // Validate account exists
+      originTransactionPayload.account = account.id;
+    }
+
+    // Handle target account change
+    if (
+      updateTransferDto.account &&
+      updateTransferDto.account !== targetTransaction.account.id
+    ) {
+      if (
+        updateTransferDto.account ===
+        (updateTransferDto.originAccount || originTransaction.account.id)
+      ) {
+        throw new HttpException(
+          'Origin and target accounts cannot be the same.',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      const account = await this.accountsService.findById(
+        updateTransferDto.account,
+        userId,
+      ); // Validate account exists
+      targetTransactionPayload.account = account.id;
+    }
+
+    if (updateTransferDto.date) {
+      originTransactionPayload.date = updateTransferDto.date;
+      targetTransactionPayload.date = updateTransferDto.date;
+    }
+
+    if (updateTransferDto.description) {
+      originTransactionPayload.description = updateTransferDto.description;
+      targetTransactionPayload.description = updateTransferDto.description;
+    }
+
+    if (updateTransferDto.notes) {
+      originTransactionPayload.notes = updateTransferDto.notes;
+      targetTransactionPayload.notes = updateTransferDto.notes;
+    }
+
+    return this.dbTransactionService.runTransaction(async (session) => {
+      if (originTransactionPayload.account) {
+        // If origin account is changed, remove the old transaction amount from the old account balance
+        await this.accountsService.addAccountBalance(
+          originTransaction.account.id,
+          -originTransaction.amount,
+          session,
+        );
+
+        // Add the new transaction amount to the new account balance
+        await this.accountsService.addAccountBalance(
+          originTransactionPayload.account,
+          originTransactionPayload.amount || originTransaction.amount,
+          session,
+        );
+
+        if (targetTransactionPayload.account) {
+          // If target account is changed, remove the old transaction amount from the old account balance
+          await this.accountsService.addAccountBalance(
+            targetTransaction.account.id,
+            -targetTransaction.amount,
+            session,
+          );
+
+          // Add the new transaction amount to the new account balance
+          await this.accountsService.addAccountBalance(
+            targetTransactionPayload.account,
+            targetTransactionPayload.amount || targetTransaction.amount,
+            session,
+          );
+        } else if (targetTransactionPayload.amount !== undefined) {
+          // If only origin account is changed and the amount changes change it on the target account
+          const amountDiff =
+            targetTransactionPayload.amount - targetTransaction.amount;
+          await this.accountsService.addAccountBalance(
+            targetTransaction.account.id,
+            amountDiff,
+            session,
+          );
+        }
+      } else if (targetTransactionPayload.account) {
+        // If only target account is changed, remove the old transaction amount from the old account balance
+        await this.accountsService.addAccountBalance(
+          targetTransaction.account.id,
+          -targetTransaction.amount,
+          session,
+        );
+
+        // Add the new transaction amount to the new account balance
+        await this.accountsService.addAccountBalance(
+          targetTransactionPayload.account,
+          targetTransactionPayload.amount || targetTransaction.amount,
+          session,
+        );
+
+        if (originTransactionPayload.amount !== undefined) {
+          // If only target account is changed and the amount changes change it on the origin account
+          const amountDiff =
+            originTransactionPayload.amount - originTransaction.amount;
+          await this.accountsService.addAccountBalance(
+            originTransaction.account.id,
+            amountDiff,
+            session,
+          );
+        }
+      } else if (isAmountUpdate) {
+        // If only the amount is changed, calculate the amount difference to update the account balance
+        const originAmountDiff =
+          originTransactionPayload.amount - originTransaction.amount;
+        const targetAmountDiff =
+          targetTransactionPayload.amount - targetTransaction.amount;
+
+        await this.accountsService.addAccountBalance(
+          originTransaction.account.id,
+          originAmountDiff,
+          session,
+        );
+
+        await this.accountsService.addAccountBalance(
+          targetTransaction.account.id,
+          targetAmountDiff,
+          session,
+        );
+      }
+
+      // Update the origin transaction
+      const updatedOriginTransaction =
+        await this.transactionModel.findOneAndUpdate(
+          { _id: originTransaction.id, user: userId },
+          originTransactionPayload,
+          { new: true, session },
+        );
+
+      // Update the target transaction
+      const updatedTargetTransaction =
+        await this.transactionModel.findOneAndUpdate(
+          { _id: targetTransaction.id, user: userId },
+          targetTransactionPayload,
+          { new: true, session },
+        );
+
+      return plainToClass(
+        TransactionDto,
+        (updatedOriginTransaction.id === transactionToUpdate.id
+          ? updatedOriginTransaction
+          : updatedTargetTransaction
+        ).toObject(),
+      );
+    });
+  }
+
+  /**
+   * Find a transaction by id.
+   * @param id The id of the transaction to find.
+   * @param userId The id of the user to find the transaction.
+   * @returns The transaction found.
+   * @async
+   */
+  private async findOne(id: string, userId: string): Promise<TransactionDto> {
+    try {
+      const transaction = await this.transactionModel.findOne({
+        _id: id,
+        user: userId,
+      });
+      if (!transaction) {
+        throw new HttpException('Transaction not found', HttpStatus.NOT_FOUND);
+      }
+      return plainToClass(TransactionDto, transaction.toObject());
+    } catch (error) {
+      this.logger.error(
+        `Failed to find transaction: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error finding the transaction',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

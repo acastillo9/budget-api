@@ -32,6 +32,7 @@ export class AccountsService {
         `Failed to create account: ${error.message}`,
         error.stack,
       );
+
       throw new HttpException(
         'Error creating the account',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -172,7 +173,7 @@ export class AccountsService {
   async addAccountBalance(
     id: string,
     amount: number,
-    session: ClientSession,
+    session?: ClientSession,
   ): Promise<AccountDto> {
     try {
       const updatedAccount = await this.accountModel.findOneAndUpdate(

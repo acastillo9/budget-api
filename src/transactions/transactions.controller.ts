@@ -16,6 +16,7 @@ import { TransactionsQueryDto } from './dto/transactions-query.dto';
 import { AuthenticatedRequest } from 'src/shared/types';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { PaginationDto } from 'src/shared/dto/pagination.dto';
+import { UpdateTransferDto } from './dto/update-transfer.dto';
 
 @Controller('transactions')
 export class TransactionsController {
@@ -72,6 +73,48 @@ export class TransactionsController {
     @Query() paginationDto: PaginationDto,
   ) {
     return this.transactionsService.findAll(req.user.userId, paginationDto);
+  }
+
+  /**
+   * update a transaction by id.
+   * @param req The request object.
+   * @param id The id of the transaction to update.
+   * @param updateTransactionDto The data to update the transaction.
+   * @returns The transaction updated.
+   * @async
+   */
+  @Patch(':id')
+  update(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() updateTransactionDto: UpdateTransactionDto,
+  ) {
+    return this.transactionsService.update(
+      id,
+      updateTransactionDto,
+      req.user.userId,
+    );
+  }
+
+  /**
+   * Update a transfer transaction by id.
+   * @param req The request object.
+   * @param id The id of the transfer transaction to update.
+   * @param updateTransferDto The data to update the transfer transaction.
+   * @returns The transfer transaction updated.
+   * @async
+   */
+  @Patch('transfer/:id')
+  updateTransfer(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() updateTransferDto: UpdateTransferDto,
+  ) {
+    return this.transactionsService.updateTransfer(
+      id,
+      updateTransferDto,
+      req.user.userId,
+    );
   }
 
   // /**
