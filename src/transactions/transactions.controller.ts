@@ -33,11 +33,10 @@ export class TransactionsController {
     @Request() req: AuthenticatedRequest,
     @Body() createTransactionDto: CreateTransactionDto,
   ) {
-    const newTransaction = {
-      ...createTransactionDto,
-      user: req.user.userId,
-    };
-    return this.transactionsService.create(newTransaction);
+    return this.transactionsService.create(
+      createTransactionDto,
+      req.user.userId,
+    );
   }
 
   /**
@@ -52,11 +51,10 @@ export class TransactionsController {
     @Request() req: AuthenticatedRequest,
     @Body() createTransferDto: CreateTransferDto,
   ) {
-    const newTransfer = {
-      ...createTransferDto,
-      user: req.user.userId,
-    };
-    return this.transactionsService.createTransfer(newTransfer);
+    return this.transactionsService.createTransfer(
+      createTransferDto,
+      req.user.userId,
+    );
   }
 
   /**

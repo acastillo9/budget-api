@@ -29,6 +29,4 @@ export class CreateTransactionDto {
 
   @IsMongoId()
   account: string;
-
-  user: string;
 }

@@ -32,15 +32,17 @@ export class TransactionsService {
   /**
    * Create a new transaction.
    * @param createTransactionDto The data to create the transaction.
+   * @param userId The id of the user to create the transaction.
    * @returns The transaction created.
    * @async
    */
   async create(
     createTransactionDto: CreateTransactionDto,
+    userId: string,
   ): Promise<TransactionDto> {
     const category = await this.categoriesService.findById(
       createTransactionDto.category,
-      createTransactionDto.user,
+      userId,
     );
 
     const newTransaction = {
@@ -49,6 +51,7 @@ export class TransactionsService {
         category.categoryType === CategoryType.EXPENSE
           ? -createTransactionDto.amount
           : createTransactionDto.amount,
+      user: userId,
     };
 
     try {
@@ -81,13 +84,14 @@ export class TransactionsService {
   /**
    * Create a transfer transaction between two accounts.
    * @param createTransferDto The data to create the transfer transaction.
+   * @param userId The id of the user to create the transfer transaction.
    * @returns The transfer transaction created.
    * @async
    */
-  async createTransfer(createTransferDto: CreateTransferDto) {
+  async createTransfer(createTransferDto: CreateTransferDto, userId: string) {
     const originAccount = await this.accountsService.findById(
       createTransferDto.originAccount,
-      createTransferDto.user,
+      userId,
     );
 
     if (!originAccount) {
@@ -99,7 +103,7 @@ export class TransactionsService {
       description: createTransferDto.description,
       notes: createTransferDto.notes,
       account: createTransferDto.account,
-      user: createTransferDto.user,
+      user: userId,
       amount: createTransferDto.amount,
     };
 
@@ -124,7 +128,7 @@ export class TransactionsService {
           description: createTransferDto.description,
           notes: createTransferDto.notes,
           account: createTransferDto.originAccount,
-          user: createTransferDto.user,
+          user: userId,
           amount: -createTransferDto.amount,
           transfer: savedIncomeTransaction.id,
           isTransfer: true,

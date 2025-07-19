@@ -29,6 +29,4 @@ export class CreateTransferDto {
 
   @IsMongoId()
   originAccount: string;
-
-  user: string;
 }
