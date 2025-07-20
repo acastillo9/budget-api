@@ -15,6 +15,4 @@ export class CreateAccountDto {
 
   @IsEnum(AccountType)
   accountType: AccountType;
-
-  user?: string;
 }

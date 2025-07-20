@@ -32,3 +32,8 @@ export class Account {
 
 export const AccountSchema =
   SchemaFactory.createForClass(Account).add(AuditableSchema);
+
+AccountSchema.pre<AccountDocument>('findOneAndDelete', async function (next) {
+  await this.model('Transaction').deleteMany({ account: this._id });
+  next();
+});

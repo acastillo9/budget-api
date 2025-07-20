@@ -22,9 +22,16 @@ export class AccountsService {
    * @returns The account created.
    * @async
    */
-  async create(createAccountDto: CreateAccountDto): Promise<AccountDto> {
+  async create(
+    createAccountDto: CreateAccountDto,
+    userId: string,
+  ): Promise<AccountDto> {
+    const newAccount = {
+      ...createAccountDto,
+      user: userId,
+    };
     try {
-      const accountModel = new this.accountModel(createAccountDto);
+      const accountModel = new this.accountModel(newAccount);
       const savedAccount = await accountModel.save();
       return plainToClass(AccountDto, savedAccount.toObject());
     } catch (error) {
