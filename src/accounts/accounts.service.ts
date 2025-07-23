@@ -253,7 +253,6 @@ export class AccountsService {
           },
         },
       ]);
-      console.log('Accounts Balance:', accountsBalance);
       return accountsBalance;
     } catch (error) {
       this.logger.error(
