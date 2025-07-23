@@ -15,6 +15,7 @@ import { CreateTransferDto } from './dto/create-transfer.dto';
 import { PaginationDto } from 'src/shared/dto/pagination.dto';
 import { PaginatedDataDto } from 'src/shared/dto/paginated-data.dto';
 import { UpdateTransferDto } from './dto/update-transfer.dto';
+import { ObjectId } from 'mongodb';
 
 @Injectable()
 export class TransactionsService {
@@ -599,6 +600,95 @@ export class TransactionsService {
       }
       return plainToClass(TransactionDto, deletedTransaction.toObject());
     });
+  }
+
+  /**
+   * Get the summary of transactions for a user.
+   * It includes the month total income and month total expenses.
+   * @param userId The id of the user to get the summary.
+   * @return The summary of transactions.
+   * @async
+   */
+  async getSummary(userId: string): Promise<
+    {
+      currencyCode: string;
+      totalIncome: number;
+      totalExpenses: number;
+    }[]
+  > {
+    // Get the start and end of the current month
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth(); // 0-indexed (e.g., 6 for July)
+
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 1);
+    try {
+      const transactions = await this.transactionModel.aggregate([
+        // Stage 1: Filter documents for the current month 🗓️
+        {
+          $match: {
+            user: new ObjectId(userId),
+            date: {
+              $gte: startDate,
+              $lt: endDate,
+            },
+          },
+        },
+        // Stage 2: Join with the 'accounts' collection to get currencyCode 🔗
+        {
+          $lookup: {
+            from: 'accounts', // The name of your accounts collection
+            localField: 'account', // Field in 'transactions' with the account ObjectId
+            foreignField: '_id', // Primary key in the 'accounts' collection
+            as: 'accountDetails',
+          },
+        },
+        // Stage 3: Deconstruct the accountDetails array to access its fields
+        {
+          $unwind: '$accountDetails',
+        },
+        // Stage 4: Group by currency code and calculate sums 💰
+        {
+          $group: {
+            _id: '$accountDetails.currencyCode', // Group by the currency code
+            totalIncome: {
+              $sum: { $cond: [{ $gt: ['$amount', 0] }, '$amount', 0] },
+            },
+            totalExpenses: {
+              $sum: { $cond: [{ $lt: ['$amount', 0] }, '$amount', 0] },
+            },
+          },
+        },
+        // Stage 5: Format the final output document ✨
+        {
+          $project: {
+            _id: 0,
+            year: year,
+            month: month + 1, // Convert to 1-indexed month (e.g., 7 for July)
+            currencyCode: '$_id',
+            totalIncome: '$totalIncome',
+            totalExpenses: { $abs: '$totalExpenses' },
+          },
+        },
+        // Stage 6: Sort by currency code for consistent ordering
+        {
+          $sort: {
+            currencyCode: 1,
+          },
+        },
+      ]);
+      return transactions;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get summary for user ${userId}: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error getting the summary',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   /**

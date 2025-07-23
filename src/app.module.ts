@@ -8,11 +8,12 @@ import { AuthModule } from './auth/auth.module';
 import { AccountsModule } from './accounts/accounts.module';
 import { MailModule } from './mail/mail.module';
 import { AcceptLanguageResolver, I18nModule } from 'nestjs-i18n';
+import { CurrenciesModule } from './currencies/currencies.module';
 import * as path from 'path';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, expandVariables: true }),
     DatabaseModule,
     I18nModule.forRoot({
       fallbackLanguage: 'en',
@@ -28,6 +29,7 @@ import * as path from 'path';
     AuthModule,
     AccountsModule,
     MailModule,
+    CurrenciesModule,
   ],
   controllers: [],
   providers: [],

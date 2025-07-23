@@ -6,6 +6,9 @@ import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 import { AccountDto } from './dto/account.dto';
 import { plainToClass } from 'class-transformer';
+import { DbTransactionService } from 'src/shared/db-transaction.service';
+import { Transaction } from 'src/transactions/entities/transaction.entity';
+import { ObjectId } from 'mongodb';
 
 @Injectable()
 export class AccountsService {
@@ -13,6 +16,9 @@ export class AccountsService {
 
   constructor(
     @InjectModel(Account.name) private readonly accountModel: Model<Account>,
+    private readonly dbTransactionService: DbTransactionService,
+    @InjectModel(Transaction.name)
+    private readonly transactionModel: Model<Transaction>,
   ) {}
 
   /**
@@ -149,14 +155,25 @@ export class AccountsService {
    */
   async remove(id: string, userId: string): Promise<AccountDto> {
     try {
-      const deletedAccount = await this.accountModel.findOneAndDelete({
-        _id: id,
-        user: userId,
+      return this.dbTransactionService.runTransaction(async (session) => {
+        const deletedAccount = await this.accountModel.findOneAndDelete(
+          {
+            _id: id,
+            user: userId,
+          },
+          {
+            session,
+          },
+        );
+        if (!deletedAccount) {
+          throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
+        }
+
+        // delete all transactions related to the account
+        await this.transactionModel.deleteMany({ account: id }, { session });
+
+        return plainToClass(AccountDto, deletedAccount.toObject());
       });
-      if (!deletedAccount) {
-        throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
-      }
-      return plainToClass(AccountDto, deletedAccount.toObject());
     } catch (error) {
       this.logger.error(
         `Failed to remove account: ${error.message}`,
@@ -201,6 +218,50 @@ export class AccountsService {
       );
       throw new HttpException(
         'Error adding balance to the account',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Get the total balance of all accounts for a user.
+   * @param userId The id of the user to get the total balance.
+   * @return The total balance of all accounts.
+   * @async
+   */
+  async getSummary(userId: string): Promise<
+    {
+      currencyCode: string;
+      totalBalance: number;
+    }[]
+  > {
+    try {
+      // query the account balance discriminated by currency code
+      const accountsBalance = await this.accountModel.aggregate([
+        { $match: { user: new ObjectId(userId) } },
+        {
+          $group: {
+            _id: '$currencyCode',
+            totalBalance: { $sum: '$balance' },
+          },
+        },
+        {
+          $project: {
+            currencyCode: '$_id',
+            totalBalance: 1,
+            _id: 0,
+          },
+        },
+      ]);
+      console.log('Accounts Balance:', accountsBalance);
+      return accountsBalance;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get total balance: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        'Error getting the total balance',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

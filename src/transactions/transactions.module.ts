@@ -17,7 +17,6 @@ import { SharedModule } from 'src/shared/shared.module';
     AccountsModule,
     CategoriesModule,
     UsersModule,
-    SharedModule,
   ],
   controllers: [TransactionsController],
   providers: [TransactionsService],

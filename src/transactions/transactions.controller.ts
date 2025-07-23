@@ -138,4 +138,16 @@ export class TransactionsController {
   ) {
     return this.transactionsService.removeTransfer(id, req.user.userId);
   }
+
+  /**
+   * Get the summary of transactions for a user.
+   * It includes total income, total expenses, and balance.
+   * @param req The request object.
+   * @return The summary of transactions.
+   * @async
+   */
+  @Get('summary')
+  getSummary(@Request() req: AuthenticatedRequest) {
+    return this.transactionsService.getSummary(req.user.userId);
+  }
 }

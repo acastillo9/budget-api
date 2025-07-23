@@ -75,4 +75,15 @@ export class AccountsController {
   ): Promise<AccountDto> {
     return this.accountsService.remove(id, req.user.userId);
   }
+
+  /**
+   * Get the total balance of all accounts of a user.
+   * @param req The request object.
+   * @return The total balance of all accounts.
+   * @async
+   */
+  @Get('summary')
+  getSummary(@Request() req: AuthenticatedRequest) {
+    return this.accountsService.getSummary(req.user.userId);
+  }
 }
