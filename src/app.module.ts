@@ -13,7 +13,7 @@ import * as path from 'path';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, expandVariables: true }),
+    ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
     I18nModule.forRoot({
       fallbackLanguage: 'en',
