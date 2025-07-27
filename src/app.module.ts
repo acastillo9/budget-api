@@ -10,11 +10,13 @@ import { MailModule } from './mail/mail.module';
 import { AcceptLanguageResolver, I18nModule } from 'nestjs-i18n';
 import { CurrenciesModule } from './currencies/currencies.module';
 import * as path from 'path';
+import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
+    CacheModule.register({ isGlobal: true }),
     I18nModule.forRoot({
       fallbackLanguage: 'en',
       loaderOptions: {
