@@ -35,38 +35,62 @@ export class CurrenciesService {
       return cacheData;
     }
 
+    const currencyCodeLower = currencyCode.toLowerCase();
     try {
-      const { data } = await firstValueFrom(
+      const { data: latestData } = await firstValueFrom(
         this.httpService.get(
-          `${this.configService.getOrThrow(EXCHANGE_RATE_API_URL)}/${currencyCode}`,
+          this.configService
+            .getOrThrow(EXCHANGE_RATE_API_URL)
+            .replace('{date}', 'latest')
+            .replace('{currencyCode}', currencyCodeLower),
         ),
       );
-      const currencies = Object.keys(CurrencyCode);
-      const rates = Object.keys(data.conversion_rates).reduce((acc, key) => {
-        if (currencies.includes(key)) {
-          acc[key] = data.conversion_rates[key];
-        }
-        return acc;
-      }, {});
+
+      // previous day data for compare with latest and calculate if the rate is up or down
+      // yesterday date is the previous day date in format YYYY-MM-DD
+      const yesterday = ((d) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)(
+        new Date(Date.now() - 86400000),
+      );
+
+      const { data: previousDayData } = await firstValueFrom(
+        this.httpService.get(
+          this.configService
+            .getOrThrow(EXCHANGE_RATE_API_URL)
+            .replace('{date}', yesterday)
+            .replace('{currencyCode}', currencyCodeLower),
+        ),
+      );
+
+      const currencyRates = this.getRatesFromResponse(
+        currencyCode,
+        latestData,
+        previousDayData,
+      );
 
       // Cache the rates
-      const now = new Date().getTime();
-      const nextUpdateTime = data.time_next_update_unix * 1000;
-      const ttl = nextUpdateTime - now;
+      const now = new Date();
+      // Create a new date object for the target time (today at 4:00:00 UTC)
+      const next4AM = new Date();
+      next4AM.setUTCHours(4, 0, 0, 0);
+      // If 4 AM UTC has already passed for today, set it to 4 AM UTC tomorrow
+      if (now.getTime() >= next4AM.getTime()) {
+        next4AM.setUTCDate(next4AM.getUTCDate() + 1);
+      }
+      // Calculate the difference in milliseconds
+      const ttl = next4AM.getTime() - now.getTime();
 
       this.logger.debug(
         `Caching exchange rates for ${currencyCode} with TTL: ${ttl}ms`,
       );
 
-      if (ttl > 0) {
-        await this.cacheManager.set(
-          `exchange_rates_${currencyCode}`,
-          rates,
-          ttl,
-        );
-      }
+      await this.cacheManager.set(
+        `exchange_rates_${currencyCode}`,
+        currencyRates,
+        ttl,
+      );
 
-      return rates;
+      return currencyRates;
     } catch (error) {
       this.logger.error(
         `Failed to fetch exchange rates for ${currencyCode}: ${error.message}`,
@@ -74,5 +98,33 @@ export class CurrenciesService {
       );
       throw new Error(`Error fetching exchange rates: ${error.message}`);
     }
+  }
+
+  /**
+   * Extracts the exchange rates from the API response.
+   * @param data The API response data containing conversion rates.
+   * @return An object containing the exchange rates for supported currencies.
+   * @private
+   */
+  private getRatesFromResponse(currencyCode: string, data, previousDayData) {
+    const currencyCodeLower = currencyCode.toLowerCase();
+    const currencies = Object.keys(CurrencyCode);
+    const rates = Object.keys(data[currencyCodeLower]).reduce((acc, key) => {
+      const keyUpper = key.toUpperCase();
+      if (currencies.includes(keyUpper)) {
+        acc[keyUpper] = {
+          rate: data[currencyCodeLower][key],
+          isUp:
+            data[currencyCodeLower][key] >
+            previousDayData[currencyCodeLower][key],
+        };
+      }
+      return acc;
+    }, {});
+    return {
+      baseCurrencyCode: currencyCode,
+      updatedAt: new Date(data.date),
+      rates,
+    };
   }
 }

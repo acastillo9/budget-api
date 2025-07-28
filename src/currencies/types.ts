@@ -1,3 +1,10 @@
 export type CurrencyRates = {
-  [currencyCode: string]: number;
+  baseCurrencyCode: string;
+  updatedAt: Date;
+  rates: {
+    [currencyCode: string]: {
+      rate: number;
+      isUp: boolean;
+    };
+  };
 };
