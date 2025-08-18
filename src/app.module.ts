@@ -11,6 +11,7 @@ import { AcceptLanguageResolver, I18nModule } from 'nestjs-i18n';
 import { CurrenciesModule } from './currencies/currencies.module';
 import * as path from 'path';
 import { CacheModule } from '@nestjs/cache-manager';
+import { AccountTypesModule } from './account-types/account-types.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { CacheModule } from '@nestjs/cache-manager';
     AccountsModule,
     MailModule,
     CurrenciesModule,
+    AccountTypesModule,
   ],
   controllers: [],
   providers: [],

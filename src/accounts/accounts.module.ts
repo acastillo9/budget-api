@@ -9,7 +9,11 @@ import {
   Transaction,
   TransactionSchema,
 } from 'src/transactions/entities/transaction.entity';
-import { AccountType, AccountTypeSchema } from './entities/account-type.entity';
+import {
+  AccountType,
+  AccountTypeSchema,
+} from '../account-types/entities/account-type.entity';
+import { AccountTypesModule } from 'src/account-types/account-types.module';
 
 @Module({
   imports: [
@@ -20,6 +24,7 @@ import { AccountType, AccountTypeSchema } from './entities/account-type.entity';
     ]),
     UsersModule,
     SharedModule,
+    AccountTypesModule,
   ],
   providers: [AccountsService],
   exports: [AccountsService],

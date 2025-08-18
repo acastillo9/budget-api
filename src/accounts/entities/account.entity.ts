@@ -3,7 +3,7 @@ import { HydratedDocument, SchemaTypes } from 'mongoose';
 import { UserDocument } from 'src/users/entities/user.entity';
 import { AuditableSchema } from 'src/shared/schemas';
 import { CurrencyCode } from 'src/shared/entities/currency-code.enum';
-import { AccountTypeDocument } from './account-type.entity';
+import { AccountTypeDocument } from '../../account-types/entities/account-type.entity';
 
 export type AccountDocument = HydratedDocument<Account>;
 
