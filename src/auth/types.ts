@@ -1,10 +1,6 @@
 export interface JwtPayload {
   sub: string;
   userId: string;
-  name: string;
-  email: string;
-  picture: string;
-  currencyCode: string;
 }
 
 export interface Credentials {

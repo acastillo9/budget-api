@@ -483,10 +483,6 @@ export class AuthService {
     const tokens = await this.getTokens(
       emailAuthenticationProvider.id,
       emailAuthenticationProvider.user.id,
-      emailAuthenticationProvider.user.name,
-      emailAuthenticationProvider.user.email,
-      emailAuthenticationProvider.user.picture,
-      emailAuthenticationProvider.user.currencyCode,
     );
 
     const hashedPassword = await hash(password, Number(PASSWORD_BYCRYPT_SALT));
@@ -542,10 +538,6 @@ export class AuthService {
     const tokens = await this.getTokens(
       authenticationProvider.id,
       authenticationProvider.user.id,
-      authenticationProvider.user.name,
-      authenticationProvider.user.email,
-      authenticationProvider.user.picture,
-      authenticationProvider.user.currencyCode,
       rememberMe,
     );
 
@@ -605,10 +597,6 @@ export class AuthService {
     const tokens = await this.getTokens(
       authenticationProvider.id,
       authenticationProvider.user.id,
-      authenticationProvider.user.name,
-      authenticationProvider.user.email,
-      authenticationProvider.user.picture,
-      authenticationProvider.user.currencyCode,
       isLongLived,
     );
     const hashedRefreshToken = await hash(
@@ -822,6 +810,21 @@ export class AuthService {
   }
 
   /**
+   * Returns the user data for the given auth provider id.
+   * @param authId The id of the auth provider.
+   * @returns The user data.
+   * @async
+   */
+  public async me(authId: string): Promise<UserDto> {
+    const authenticationProvider =
+      await this.findAuthenticationProviderById(authId);
+    if (!authenticationProvider) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+    return authenticationProvider.user;
+  }
+
+  /**
    * get the currency code from the locale.
    * @param locale The locale to get the currency code from.
    * @return The currency code.
@@ -1011,10 +1014,6 @@ export class AuthService {
   private async getTokens(
     authId: string,
     userId: string,
-    name: string,
-    email: string,
-    picture: string,
-    currencyCode: CurrencyCode,
     isLongLived: boolean = false,
   ) {
     const [accessToken, refreshToken] = await Promise.all([
@@ -1022,10 +1021,6 @@ export class AuthService {
         {
           sub: authId,
           userId,
-          name,
-          email,
-          picture,
-          currencyCode,
         },
         {
           secret: this.configService.getOrThrow(JWT_SECRET),

@@ -136,13 +136,7 @@ export class AuthController {
    */
   @Get('me')
   me(@Req() req: AuthenticatedRequest) {
-    return {
-      id: req.user.userId,
-      name: req.user.name,
-      email: req.user.email,
-      picture: req.user.picture,
-      currencyCode: req.user.currencyCode,
-    };
+    return this.authService.me(req.user.authId);
   }
 
   /**
