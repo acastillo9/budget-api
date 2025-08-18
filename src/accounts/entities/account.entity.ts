@@ -2,8 +2,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes } from 'mongoose';
 import { UserDocument } from 'src/users/entities/user.entity';
 import { AuditableSchema } from 'src/shared/schemas';
-import { AccountType } from './account-type.enum';
 import { CurrencyCode } from 'src/shared/entities/currency-code.enum';
+import { AccountTypeDocument } from './account-type.entity';
 
 export type AccountDocument = HydratedDocument<Account>;
 
@@ -18,8 +18,13 @@ export class Account {
   @Prop({ type: String, enum: CurrencyCode, required: true })
   currencyCode: CurrencyCode;
 
-  @Prop({ type: String, enum: AccountType, required: true })
-  accountType: AccountType;
+  @Prop({
+    type: SchemaTypes.ObjectId,
+    ref: 'AccountType',
+    required: true,
+    autopopulate: true,
+  })
+  accountType: AccountTypeDocument;
 
   @Prop({
     type: SchemaTypes.ObjectId,

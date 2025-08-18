@@ -9,12 +9,14 @@ import {
   Transaction,
   TransactionSchema,
 } from 'src/transactions/entities/transaction.entity';
+import { AccountType, AccountTypeSchema } from './entities/account-type.entity';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Account.name, schema: AccountSchema },
       { name: Transaction.name, schema: TransactionSchema },
+      { name: AccountType.name, schema: AccountTypeSchema },
     ]),
     UsersModule,
     SharedModule,

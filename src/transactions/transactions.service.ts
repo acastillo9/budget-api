@@ -633,6 +633,7 @@ export class TransactionsService {
               $gte: startDate,
               $lt: endDate,
             },
+            isTransfer: false,
           },
         },
         // Stage 2: Join with the 'accounts' collection to get currencyCode 🔗

@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   Headers,
+  HttpException,
+  HttpStatus,
   Param,
   Post,
   Query,
@@ -28,6 +30,7 @@ import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { JwtRefreshGuard } from './jwt-refresh.guard';
 import { AuthenticationProviderType } from './entities/authentication-provider-type.enum';
+import { GoogleLoginDto } from './dto/google-login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -62,10 +65,8 @@ export class AuthController {
     @Body() registerDto: RegisterDto,
     @Headers('Accept-Language') acceptLanguage: string,
   ): Promise<RegisterResponseDto> {
-    registerDto.locale = acceptLanguage
-      ? acceptLanguage.split(',')[0]
-      : 'en-US';
-    return this.authService.registerByEmail(registerDto);
+    const locale = acceptLanguage ? acceptLanguage.split(',')[0] : 'en-US';
+    return this.authService.registerByEmail(registerDto, locale);
   }
 
   /**
@@ -218,11 +219,27 @@ export class AuthController {
     @Res() res: Response,
     @Headers('Accept-Language') acceptLanguage: string,
   ) {
-    if (!req.user.locale) {
-      // If locale is not set, use the Accept-Language header
-      req.user.locale = acceptLanguage ? acceptLanguage.split(',')[0] : 'en-US';
+    if (!req.user) {
+      throw new HttpException('Login fail', HttpStatus.BAD_REQUEST);
     }
-    const session: Credentials = await this.authService.googleLogin(req);
+
+    const googleLogin: GoogleLoginDto = {
+      id: req.user.sub,
+      email: req.user.email,
+      displayName: req.user.displayName,
+      picture: req.user.picture,
+    };
+
+    const locale =
+      req.user.locale || acceptLanguage
+        ? acceptLanguage.split(',')[0]
+        : 'en-US';
+
+    const session: Credentials = await this.authService.googleLogin(
+      googleLogin,
+      locale,
+    );
+
     return res.redirect(
       301,
       `${this.configService.getOrThrow('GOOGLE_CLIENT_CALLBACK_URL')}?access_token=${session.access_token}&refresh_token=${session.refresh_token}`,

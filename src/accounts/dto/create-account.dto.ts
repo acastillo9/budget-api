@@ -1,5 +1,10 @@
-import { IsEnum, IsNotEmpty, IsNumber, IsString } from 'class-validator';
-import { AccountType } from '../entities/account-type.enum';
+import {
+  IsEnum,
+  IsMongoId,
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+} from 'class-validator';
 import { CurrencyCode } from 'src/shared/entities/currency-code.enum';
 
 export class CreateAccountDto {
@@ -13,6 +18,6 @@ export class CreateAccountDto {
   @IsNumber()
   balance: number;
 
-  @IsEnum(AccountType)
-  accountType: AccountType;
+  @IsMongoId()
+  accountType: string;
 }

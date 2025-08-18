@@ -9,6 +9,7 @@ import { plainToClass } from 'class-transformer';
 import { DbTransactionService } from 'src/shared/db-transaction.service';
 import { Transaction } from 'src/transactions/entities/transaction.entity';
 import { ObjectId } from 'mongodb';
+import { AccountsSummary } from './types';
 
 @Injectable()
 export class AccountsService {
@@ -229,31 +230,51 @@ export class AccountsService {
    * @return The total balance of all accounts.
    * @async
    */
-  async getSummary(userId: string): Promise<
-    {
-      currencyCode: string;
-      totalBalance: number;
-    }[]
-  > {
+  async getSummary(userId: string): Promise<AccountsSummary> {
     try {
       // query the account balance discriminated by currency code
-      const accountsBalance = await this.accountModel.aggregate([
+      const assetsAccountsBalance = await this.accountModel.aggregate([
         { $match: { user: new ObjectId(userId) } },
         {
+          $lookup: {
+            from: 'accounttypes',
+            localField: 'accountType',
+            foreignField: '_id',
+            as: 'accountType',
+          },
+        },
+        {
+          $addFields: {
+            accountType: {
+              $arrayElemAt: ['$accountType', 0],
+            },
+          },
+        },
+        {
           $group: {
-            _id: '$currencyCode',
-            totalBalance: { $sum: '$balance' },
+            _id: {
+              currencyCode: '$currencyCode',
+              accountCategory: '$accountType.accountCategory',
+            },
+            totalBalance: {
+              $sum: '$balance',
+            },
+            accountsCount: {
+              $sum: 1,
+            },
           },
         },
         {
           $project: {
-            currencyCode: '$_id',
+            currencyCode: '$_id.currencyCode',
+            accountCategory: '$_id.accountCategory',
             totalBalance: 1,
+            accountsCount: 1,
             _id: 0,
           },
         },
       ]);
-      return accountsBalance;
+      return assetsAccountsBalance;
     } catch (error) {
       this.logger.error(
         `Failed to get total balance: ${error.message}`,

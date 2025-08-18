@@ -44,6 +44,7 @@ import { AuthenticationProviderStatus } from './entities/authentication-provider
 import { UpdateAuthenticationProviderDto } from './dto/update-authentication-provider.dto';
 import { I18nService } from 'nestjs-i18n';
 import { CurrencyCode } from 'src/shared/entities/currency-code.enum';
+import { GoogleLoginDto } from './dto/google-login.dto';
 
 @Injectable()
 export class AuthService {
@@ -75,7 +76,12 @@ export class AuthService {
       AuthenticationProviderType.EMAIL,
       email,
     );
-    if (!emailAuthenticationProvider) return null;
+    if (
+      !emailAuthenticationProvider ||
+      emailAuthenticationProvider.status !== AuthenticationProviderStatus.ACTIVE
+    ) {
+      return null;
+    }
     const isPasswordMatching = await compare(
       password,
       emailAuthenticationProvider.password,
@@ -97,7 +103,7 @@ export class AuthService {
       email,
     );
     const registered =
-      emailAuthentication &&
+      !!emailAuthentication &&
       emailAuthentication.status === AuthenticationProviderStatus.ACTIVE;
     return { registered };
   }
@@ -105,11 +111,13 @@ export class AuthService {
   /**
    * Register a new user by email.
    * @param registerDto The data to register the user.
+   * @param locale The locale of the user to register.
    * @returns The user registered.
    * @async
    */
   async registerByEmail(
     registerDto: RegisterDto,
+    locale: string,
   ): Promise<RegisterResponseDto> {
     const user = await this.usersService.findByEmail(registerDto.email);
 
@@ -120,7 +128,7 @@ export class AuthService {
           const createUserDto: CreateUserDto = {
             name: registerDto.name,
             email: registerDto.email,
-            currencyCode: this.getCurrencyCodeFromLocale(registerDto.locale),
+            currencyCode: this.getCurrencyCodeFromLocale(locale),
           };
           const newUser = await this.usersService.create(
             createUserDto,
@@ -750,32 +758,29 @@ export class AuthService {
 
   /**
    * Login a user with google.
-   * @param req The request object.
+   * @param googleLogin The data to login with google.
+   * @param locale The locale of the user to login.
    * @returns The session created.
    * @async
    */
-  async googleLogin(req: GoogleAuthenticatedRequest) {
-    if (!req.user) {
-      throw new HttpException('Login fail', HttpStatus.BAD_REQUEST);
-    }
-
+  async googleLogin(googleLogin: GoogleLoginDto, locale: string) {
     let googleAuthenticationProvider = await this.findAuthenticationProvider(
       AuthenticationProviderType.GOOGLE,
-      req.user.sub,
+      googleLogin.id,
     );
 
     if (!googleAuthenticationProvider) {
-      let user = await this.usersService.findByEmail(req.user.email);
+      let user = await this.usersService.findByEmail(googleLogin.email);
       try {
         googleAuthenticationProvider =
           await this.dbTransactionService.runTransaction(async (session) => {
             // if the user does not exists create the user and the google authentication
             if (!user) {
               const createUserDto: CreateUserDto = {
-                name: req.user.displayName,
-                email: req.user.email,
-                picture: req.user.picture,
-                currencyCode: this.getCurrencyCodeFromLocale(req.user.locale),
+                name: googleLogin.displayName,
+                email: googleLogin.email,
+                picture: googleLogin.picture,
+                currencyCode: this.getCurrencyCodeFromLocale(locale),
               };
               user = await this.usersService.create(createUserDto, session);
             }
@@ -783,7 +788,7 @@ export class AuthService {
             // create the google authentication provider
             const createAuthenticationDto: CreateAuthenticationProviderDto = {
               providerType: AuthenticationProviderType.GOOGLE,
-              providerUserId: req.user.sub,
+              providerUserId: googleLogin.id,
               user: user.id,
               status: AuthenticationProviderStatus.ACTIVE,
             };
