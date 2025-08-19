@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes } from 'mongoose';
-import { BaseSchema } from 'src/shared/schemas';
+import { AuditableSchema } from 'src/shared/schemas';
 import { UserDocument } from 'src/users/entities/user.entity';
 import { CategoryType } from './category-type.enum';
 
@@ -27,4 +27,4 @@ export class Category {
 }
 
 export const CategorySchema =
-  SchemaFactory.createForClass(Category).add(BaseSchema);
+  SchemaFactory.createForClass(Category).add(AuditableSchema);

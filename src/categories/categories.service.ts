@@ -47,7 +47,9 @@ export class CategoriesService {
    */
   async findAll(userId: string): Promise<CategoryDto[]> {
     try {
-      const categories = await this.categoryModel.find({ user: userId });
+      const categories = await this.categoryModel.find({ user: userId }).sort({
+        createdAt: -1,
+      });
       return categories.map((category) =>
         plainToClass(CategoryDto, category.toObject()),
       );
