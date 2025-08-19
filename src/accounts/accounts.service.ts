@@ -62,7 +62,9 @@ export class AccountsService {
    */
   async findAll(userId: string): Promise<AccountDto[]> {
     try {
-      const accounts = await this.accountModel.find({ user: userId });
+      const accounts = await this.accountModel.find({ user: userId }).sort({
+        createdAt: -1,
+      });
       return accounts.map((account) =>
         plainToClass(AccountDto, account.toObject()),
       );
