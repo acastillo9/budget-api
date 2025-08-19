@@ -10,6 +10,7 @@ import { DbTransactionService } from 'src/shared/db-transaction.service';
 import { Transaction } from 'src/transactions/entities/transaction.entity';
 import { ObjectId } from 'mongodb';
 import { AccountsSummary } from './types';
+import { PaginationDto } from 'src/shared/dto/pagination.dto';
 
 @Injectable()
 export class AccountsService {
@@ -57,13 +58,22 @@ export class AccountsService {
   /**
    * Find all accounts of a user.
    * @param userId The id of the user to find the accounts.
+   * @param paginationDto The pagination data.
    * @returns The accounts found.
    * @async
    */
-  async findAll(userId: string): Promise<AccountDto[]> {
+  async findAll(
+    userId: string,
+    paginationDto: PaginationDto,
+  ): Promise<AccountDto[]> {
+    const limit = paginationDto.limit; // Default limit to 10 if not provided
+
     try {
-      const accounts = await this.accountModel.find({ user: userId }).sort({
-        createdAt: -1,
+      const accounts = await this.accountModel.find({ user: userId }, null, {
+        limit,
+        sort: {
+          createdAt: -1,
+        },
       });
       return accounts.map((account) =>
         plainToClass(AccountDto, account.toObject()),

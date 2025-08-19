@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Request,
 } from '@nestjs/common';
 import { AccountsService } from './accounts.service';
@@ -13,6 +14,7 @@ import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 import { AccountDto } from './dto/account.dto';
 import { AuthenticatedRequest } from 'src/shared/types';
+import { PaginationDto } from 'src/shared/dto/pagination.dto';
 
 @Controller('accounts')
 export class AccountsController {
@@ -36,12 +38,16 @@ export class AccountsController {
   /**
    * Find all accounts of a user.
    * @param req The request object.
+   * @param paginationDto The pagination data.
    * @returns The accounts found.
    * @async
    */
   @Get()
-  findAll(@Request() req: AuthenticatedRequest): Promise<AccountDto[]> {
-    return this.accountsService.findAll(req.user.userId);
+  findAll(
+    @Request() req: AuthenticatedRequest,
+    @Query() paginationDto: PaginationDto,
+  ): Promise<AccountDto[]> {
+    return this.accountsService.findAll(req.user.userId, paginationDto);
   }
 
   /**
