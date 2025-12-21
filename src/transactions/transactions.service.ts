@@ -3,7 +3,7 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Transaction } from './entities/transaction.entity';
-import { Model } from 'mongoose';
+import { ClientSession, Model } from 'mongoose';
 import { AccountsService } from 'src/accounts/accounts.service';
 import { TransactionDto } from './dto/transaction.dto';
 import { plainToClass } from 'class-transformer';
@@ -40,6 +40,7 @@ export class TransactionsService {
   async create(
     createTransactionDto: CreateTransactionDto,
     userId: string,
+    session?: ClientSession,
   ): Promise<TransactionDto> {
     const category = await this.categoriesService.findById(
       createTransactionDto.category,
@@ -55,21 +56,25 @@ export class TransactionsService {
       user: userId,
     };
 
+    const saveTransactionFn = async (session: ClientSession) => {
+      // create the transaction
+      const transactionModel = new this.transactionModel(newTransaction);
+      const savedTransaction = await transactionModel.save({ session });
+
+      // add the transaction amount to the account balance
+      await this.accountsService.addAccountBalance(
+        savedTransaction.account.id,
+        savedTransaction.amount,
+        session,
+      );
+
+      return plainToClass(TransactionDto, savedTransaction.toObject());
+    };
+
     try {
-      return this.dbTransactionService.runTransaction(async (session) => {
-        // create the transaction
-        const transactionModel = new this.transactionModel(newTransaction);
-        const savedTransaction = await transactionModel.save({ session });
-
-        // add the transaction amount to the account balance
-        await this.accountsService.addAccountBalance(
-          savedTransaction.account.id,
-          savedTransaction.amount,
-          session,
-        );
-
-        return plainToClass(TransactionDto, savedTransaction.toObject());
-      });
+      return session
+        ? saveTransactionFn(session)
+        : this.dbTransactionService.runTransaction(saveTransactionFn);
     } catch (error) {
       this.logger.error(
         `Failed to create transaction: ${error.message}`,
@@ -216,6 +221,7 @@ export class TransactionsService {
    * @param id The id of the transaction to update.
    * @param updateTransactionDto The data to update the transaction.
    * @param userId The id of the user to update the transaction.
+   * @param session Optional mongoose client session to use for transaction.
    * @return The transaction updated.
    * @async
    */
@@ -223,6 +229,7 @@ export class TransactionsService {
     id: string,
     updateTransactionDto: UpdateTransactionDto,
     userId: string,
+    session?: ClientSession,
   ): Promise<TransactionDto> {
     const oldTransaction = await this.findOne(id, userId);
 
@@ -239,23 +246,21 @@ export class TransactionsService {
         updateTransactionDto.category,
         userId,
       );
+
       dataToUpdate.category = category.id;
-      // if the category type is changed, we need to update the amount in case of expense
-      if (category.categoryType !== oldTransaction.category.categoryType) {
-        // if the updateTrabsactionDto.amount is defined we need to update the amount
-        if (
-          updateTransactionDto.amount !== undefined &&
-          updateTransactionDto.amount !== oldTransaction.amount
-        ) {
-          dataToUpdate.amount =
-            category.categoryType === CategoryType.EXPENSE
-              ? -updateTransactionDto.amount
-              : updateTransactionDto.amount;
-        } else {
-          // if the amount is not defined, we need to keep the old amount but
-          // change the sign if the category type is changed
-          dataToUpdate.amount = -oldTransaction.amount;
-        }
+      // if the updateTrabsactionDto.amount is defined we need to update the amount
+      if (
+        updateTransactionDto.amount !== undefined &&
+        updateTransactionDto.amount !== oldTransaction.amount
+      ) {
+        dataToUpdate.amount =
+          category.categoryType === CategoryType.EXPENSE
+            ? -updateTransactionDto.amount
+            : updateTransactionDto.amount;
+      } else {
+        // if the amount is not defined, we need to keep the old amount but
+        // change the sign if the category type is changed
+        dataToUpdate.amount = -oldTransaction.amount;
       }
     } else if (
       updateTransactionDto.amount !== undefined &&
@@ -268,7 +273,7 @@ export class TransactionsService {
           : updateTransactionDto.amount;
     }
 
-    return this.dbTransactionService.runTransaction(async (session) => {
+    const updateFn = async (session: ClientSession) => {
       // if the account was changed, remove the old transaction amount from the old account balance
       if (
         updateTransactionDto.account &&
@@ -315,7 +320,10 @@ export class TransactionsService {
       );
 
       return plainToClass(TransactionDto, updatedTransaction.toObject());
-    });
+    };
+    return session
+      ? updateFn(session)
+      : this.dbTransactionService.runTransaction(updateFn);
   }
 
   /**
@@ -535,9 +543,13 @@ export class TransactionsService {
    * @returns The transaction removed.
    * @async
    */
-  async remove(id: string, userId: string): Promise<TransactionDto> {
+  async remove(
+    id: string,
+    userId: string,
+    session?: ClientSession,
+  ): Promise<TransactionDto> {
     const transaction = await this.findOne(id, userId);
-    return this.dbTransactionService.runTransaction(async (session) => {
+    const removeFn = async (session: ClientSession) => {
       // Remove the transaction amount from the account balance
       await this.accountsService.addAccountBalance(
         transaction.account.id,
@@ -553,7 +565,11 @@ export class TransactionsService {
         throw new HttpException('Transaction not found', HttpStatus.NOT_FOUND);
       }
       return plainToClass(TransactionDto, deletedTransaction.toObject());
-    });
+    };
+
+    return session
+      ? removeFn(session)
+      : this.dbTransactionService.runTransaction(removeFn);
   }
 
   /**

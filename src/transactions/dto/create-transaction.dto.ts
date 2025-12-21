@@ -22,11 +22,13 @@ export class CreateTransactionDto {
 
   @IsOptional()
   @IsString()
-  notes: string;
+  notes?: string;
 
   @IsMongoId()
   category: string;
 
   @IsMongoId()
   account: string;
+
+  bill?: string;
 }

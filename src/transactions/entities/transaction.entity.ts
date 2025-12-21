@@ -4,6 +4,7 @@ import { CategoryDocument } from 'src/categories/entities/category.entity';
 import { AccountDocument } from 'src/accounts/entities/account.entity';
 import { UserDocument } from 'src/users/entities/user.entity';
 import { AuditableSchema } from 'src/shared/schemas';
+import { BillDocument } from 'src/bills/entities/bill.entity';
 
 export type TransactionDocument = HydratedDocument<Transaction>;
 
@@ -32,7 +33,7 @@ export class Transaction {
     ref: 'Category',
     autopopulate: true,
   })
-  category: CategoryDocument;
+  category?: CategoryDocument;
 
   @Prop({
     type: SchemaTypes.ObjectId,
@@ -50,7 +51,14 @@ export class Transaction {
     ref: 'Transaction',
     autopopulate: true,
   })
-  transfer: TransactionDocument;
+  transfer?: TransactionDocument;
+
+  @Prop({
+    type: SchemaTypes.ObjectId,
+    ref: 'Bill',
+    autopopulate: true,
+  })
+  bill?: BillDocument;
 
   @Prop({
     type: SchemaTypes.ObjectId,

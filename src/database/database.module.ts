@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import * as mongooseAutopopulate from 'mongoose-autopopulate';
 
 @Module({
   imports: [
@@ -8,8 +9,7 @@ import { MongooseModule } from '@nestjs/mongoose';
       useFactory: (configService: ConfigService) => ({
         uri: configService.getOrThrow('MONGODB_URI'),
         connectionFactory: (connection) => {
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
-          connection.plugin(require('mongoose-autopopulate'));
+          connection.plugin(mongooseAutopopulate);
           return connection;
         },
       }),

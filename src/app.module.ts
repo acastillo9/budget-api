@@ -12,6 +12,7 @@ import { CurrenciesModule } from './currencies/currencies.module';
 import * as path from 'path';
 import { CacheModule } from '@nestjs/cache-manager';
 import { AccountTypesModule } from './account-types/account-types.module';
+import { BillsModule } from './bills/bills.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AccountTypesModule } from './account-types/account-types.module';
     MailModule,
     CurrenciesModule,
     AccountTypesModule,
+    BillsModule,
   ],
   controllers: [],
   providers: [],
