@@ -123,8 +123,10 @@ BillSchema.methods.getInstances = function (
     dueDate: new Date(this.dueDate),
     endDate: this.endDate ? new Date(this.endDate) : null,
     frequency: this.frequency,
-    account: this.account,
-    category: this.category,
+    account: this.account.toObject(),
+    category: this.category.toObject(),
+    isPaid: false,
+    isDeleted: false,
   };
 
   while (
@@ -135,12 +137,13 @@ BillSchema.methods.getInstances = function (
     const override = this.overrides.get(instanceKey);
 
     if (override?.applyToFuture) {
-      runningState = { ...runningState, ...override };
+      runningState = { ...runningState, ...override.toObject() };
     }
 
     if (
       runningState.dueDate >= rangeStart &&
-      (!override?.isDeleted || override?.isPaid)
+      (!override?.isDeleted || override?.isPaid) &&
+      (!runningState.isDeleted || runningState.isPaid)
     ) {
       const finalDueDate = override?.dueDate
         ? new Date(override.dueDate)
@@ -157,10 +160,8 @@ BillSchema.methods.getInstances = function (
           ? BillStatus.PAID
           : calculateStatus(finalDueDate),
         frequency: override?.frequency || runningState.frequency,
-        account:
-          override?.account?.toObject() || runningState.account.toObject(),
-        category:
-          override?.category?.toObject() || runningState.category.toObject(),
+        account: override?.account?.toObject() || runningState.account,
+        category: override?.category?.toObject() || runningState.category,
         paidDate: override?.paidDate,
         applyToFuture: !!override?.applyToFuture,
       };
