@@ -48,6 +48,9 @@ export class BillModification {
 
   @Prop({ type: Boolean })
   applyToFuture?: boolean;
+
+  @Prop({ type: Boolean })
+  isDeleted?: boolean;
 }
 
 export const BillModificationSchema =

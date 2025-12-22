@@ -8,6 +8,7 @@ import {
   Query,
   Request,
   ParseDatePipe,
+  Delete,
 } from '@nestjs/common';
 import { BillsService } from './bills.service';
 import { BillDto } from './dto/bill.dto';
@@ -17,6 +18,7 @@ import { DateRangeDto } from 'src/shared/dto/date-range.dto';
 import { BillInstanceDto } from './dto/bill-instance.dto';
 import { UpdateBillDto } from './dto/update-bill.dto';
 import { PayBillDto } from './dto/pay-bill.dto';
+import { DeleteBillDto } from './dto/delete-bill.dto';
 
 @Controller('bills')
 export class BillsController {
@@ -97,6 +99,15 @@ export class BillsController {
     return this.billsService.cancelPayment(id, targetDate, req.user.userId);
   }
 
+  /**
+   * Update a bill.
+   * @param id The id of the bill to update.
+   * @param targetDate The date of the bill instance to update.
+   * @param req The request object.
+   * @param updateBillDto The data to update the bill.
+   * @returns The bill updated.
+   * @async
+   */
   @Patch(':id/:targetDate')
   update(
     @Param('id') id: string,
@@ -109,6 +120,31 @@ export class BillsController {
       id,
       targetDate,
       updateBillDto,
+      req.user.userId,
+    );
+  }
+
+  /**
+   * Delete a bill.
+   * @param id The id of the bill to delete.
+   * @param targetDate The date of the bill to delete.
+   * @param req The request object.
+   * @returns A promise that resolves when the bill is deleted.
+   * @async
+   */
+  @Delete(':id/:targetDate')
+  delete(
+    @Param('id') id: string,
+    @Param('targetDate', new ParseDatePipe({ optional: false }))
+    targetDate: Date,
+    @Request() req: AuthenticatedRequest,
+    @Body() deleteBillDto: DeleteBillDto,
+  ): Promise<BillInstanceDto> {
+    return this.billsService.delete(
+      id,
+
+      targetDate,
+      deleteBillDto,
       req.user.userId,
     );
   }

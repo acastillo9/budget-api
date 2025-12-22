@@ -13,6 +13,7 @@ import { BillModificationDocument } from './entities/bill-modification.entity';
 import { PayBillDto } from './dto/pay-bill.dto';
 import { BillInstance } from './entities/bill-instance.entity';
 import { BillStatus } from './entities/bill-status.enum';
+import { DeleteBillDto } from './dto/delete-bill.dto';
 
 @Injectable()
 export class BillsService {
@@ -136,15 +137,12 @@ export class BillsService {
             transactionId: newTransaction.id,
           };
         } else {
-          newOverride = {
-            ...override.toObject(),
-            isPaid: true,
-            paidDate: newTransaction.date,
-            transactionId: newTransaction.id,
-          };
+          override.isPaid = true;
+          override.paidDate = newTransaction.date;
+          override.transactionId = newTransaction.id;
         }
 
-        bill.overrides.set(overrideDate, newOverride);
+        bill.overrides.set(overrideDate, newOverride || override);
         await bill.save({ session });
         return plainToInstance(BillInstanceDto, bill.getInstance(targetDate));
       });
@@ -212,6 +210,15 @@ export class BillsService {
     }
   }
 
+  /**
+   * Update a bill for a specific date.
+   * @param id The id of the bill to update.
+   * @param targetDate The date of the bill instance to update.
+   * @param updateBillDto The data to update the bill.
+   * @param userId The id of the user updating the bill.
+   * @return The updated bill instance.
+   * @async
+   */
   async update(
     id: string,
 
@@ -226,11 +233,12 @@ export class BillsService {
     }
 
     if (
-      updateBillDto.applyToFuture &&
-      (updateBillDto.endDate || updateBillDto.frequency)
+      !updateBillDto.applyToFuture &&
+      (updateBillDto.endDate.getTime() !== bill.endDate.getTime() ||
+        updateBillDto.frequency !== bill.frequency)
     ) {
       throw new HttpException(
-        'Cannot change endDate or frequency when applying to future instances',
+        'Cannot update endDate or frequency without applying to future instances',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -270,6 +278,62 @@ export class BillsService {
                 ? { category: modification.category }
                 : {}),
             },
+            userId,
+            session,
+          );
+        }
+
+        return plainToInstance(BillInstanceDto, bill.getInstance(targetDate));
+      });
+    } catch (error) {
+      this.logger.error(`Failed to update bill: ${error.message}`, error.stack);
+      throw new HttpException(
+        'Error updating the bill',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Delete a bill.
+   * @param id The id of the bill to delete.
+   * @param targetDate The date of the bill to delete.
+   * @param deleteBillDto The data to delete the bill.
+   * @param userId The id of the user deleting the bill.
+   * @async
+   */
+  async delete(
+    id: string,
+    targetDate: Date,
+    deleteBillDto: DeleteBillDto,
+    userId: string,
+  ): Promise<BillInstanceDto> {
+    const bill = await this.billModel.findOne({ _id: id, user: userId });
+
+    if (!bill) {
+      throw new HttpException('Bill not found', HttpStatus.NOT_FOUND);
+    }
+
+    const overrides = bill.get('overrides');
+    const overrideDate = targetDate.toISOString().split('T')[0];
+    const override: BillModificationDocument = overrides.get(overrideDate);
+
+    if (override?.isDeleted) {
+      throw new HttpException('Bill already deleted', HttpStatus.BAD_REQUEST);
+    }
+
+    try {
+      return this.dbTransactionService.runTransaction(async (session) => {
+        const updatedInstance = await bill.updateInstance(
+          targetDate,
+          { isDeleted: true },
+          deleteBillDto.applyToFuture,
+          session,
+        );
+
+        if (updatedInstance.status === BillStatus.PAID) {
+          await this.transactionsService.remove(
+            updatedInstance.transactionId,
             userId,
             session,
           );

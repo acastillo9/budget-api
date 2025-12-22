@@ -138,7 +138,10 @@ BillSchema.methods.getInstances = function (
       runningState = { ...runningState, ...override };
     }
 
-    if (runningState.dueDate >= rangeStart) {
+    if (
+      runningState.dueDate >= rangeStart &&
+      (!override?.isDeleted || override?.isPaid)
+    ) {
       const finalDueDate = override?.dueDate
         ? new Date(override.dueDate)
         : new Date(runningState.dueDate);
@@ -225,7 +228,11 @@ BillSchema.methods.updateInstance = async function (
   }
 
   const newOverride = {
-    ...(existingOverride ? existingOverride.toObject() : {}),
+    ...(existingOverride
+      ? existingOverride.toObject({
+          depopulate: true,
+        })
+      : {}),
     ...updates,
     applyToFuture,
   };
