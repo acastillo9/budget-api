@@ -115,7 +115,8 @@ BillSchema.methods.getInstances = function (
   rangeStart: Date,
   rangeEnd: Date,
 ): BillInstance[] {
-  const instances: BillInstance[] = [];
+  const overdueInstances: BillInstance[] = [];
+  const rangeInstances: BillInstance[] = [];
 
   let runningState = {
     name: this.name,
@@ -140,42 +141,54 @@ BillSchema.methods.getInstances = function (
       runningState = { ...runningState, ...override.toObject() };
     }
 
-    if (
-      runningState.dueDate >= rangeStart &&
-      (!override?.isDeleted || override?.isPaid) &&
-      (!runningState.isDeleted || runningState.isPaid)
-    ) {
+    const isDeleted =
+      (override?.isDeleted && !override?.isPaid) ||
+      (runningState.isDeleted && !runningState.isPaid);
+
+    if (!isDeleted) {
       const finalDueDate = override?.dueDate
         ? new Date(override.dueDate)
         : new Date(runningState.dueDate);
 
-      const instance: BillInstance = {
-        id: this.id,
-        targetDate: new Date(instanceKey), // The stable, original due date
-        name: override?.name || runningState.name,
-        amount: override?.amount || runningState.amount,
-        dueDate: finalDueDate,
-        endDate: override?.endDate || runningState.endDate || undefined,
-        status: override?.isPaid
-          ? BillStatus.PAID
-          : calculateStatus(finalDueDate),
-        frequency: override?.frequency || runningState.frequency,
-        account: override?.account?.toObject() || runningState.account,
-        category: override?.category?.toObject() || runningState.category,
-        paidDate: override?.paidDate,
-        applyToFuture: !!override?.applyToFuture,
-      };
-      instances.push(instance);
+      const isPaid = !!override?.isPaid;
+      const status = isPaid ? BillStatus.PAID : calculateStatus(finalDueDate);
+      const isBeforeRange = runningState.dueDate < rangeStart;
+      const isOverdueUnpaid = status === BillStatus.OVERDUE && !isPaid;
+
+      // Include instance if it's within the range OR if it's an overdue unpaid bill before the range
+      if (!isBeforeRange || isOverdueUnpaid) {
+        const instance: BillInstance = {
+          id: this.id,
+          targetDate: new Date(instanceKey), // The stable, original due date
+          name: override?.name || runningState.name,
+          amount: override?.amount || runningState.amount,
+          dueDate: finalDueDate,
+          endDate: override?.endDate || runningState.endDate || undefined,
+          status,
+          frequency: override?.frequency || runningState.frequency,
+          account: override?.account?.toObject() || runningState.account,
+          category: override?.category?.toObject() || runningState.category,
+          paidDate: override?.paidDate,
+          applyToFuture: !!override?.applyToFuture,
+        };
+
+        if (isBeforeRange) {
+          overdueInstances.push(instance);
+        } else {
+          rangeInstances.push(instance);
+        }
+      }
     }
 
     if (runningState.frequency === BillFrequency.ONCE) {
-      return instances;
+      return [...overdueInstances, ...rangeInstances];
     }
 
     advanceDate(runningState.dueDate, runningState.frequency);
   }
 
-  return instances;
+  // Return overdue instances first, then range instances (both sorted by dueDate)
+  return [...overdueInstances, ...rangeInstances];
 };
 
 BillSchema.methods.getInstance = function (
